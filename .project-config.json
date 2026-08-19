@@ -1,0 +1,42 @@
+{
+  "build_command": "pnpm run build",
+  "capabilities": [
+    "db",
+    "server",
+    "user"
+  ],
+  "dev_command": "pnpm run dev",
+  "env_vars": {
+    "DATABASE_URL": "mysql://9sQTnBCPaD5Ew3J.root:1111uqoHImi4r2zJxXoL@gateway03.us-east-1.prod.aws.tidbcloud.com:4000/fDi2XfoZ7YwCvTMmDdEJiY?ssl={\"rejectUnauthorized\":true}"
+  },
+  "experiments": [
+    "no_db_push"
+  ],
+  "git_remote": {
+    "repo_url": "https://7f0548f6b28a1758d9bf7be630d36cb4.artifacts.cloudflare.net/git/prod/fDi2XfoZ7YwCvTMmDdEJiY.git",
+    "expiration": "2026-08-18T17:31:01.541Z",
+    "token": "art_v2_x_35976bf0df4af775c73d12e146d736725254418b?expires=1787074261",
+    "backend": "GIT_BACKEND_ARTIFACTS"
+  },
+  "name": "hedge-lab",
+  "path": "/home/ubuntu/hedge-lab",
+  "port": 3000,
+  "secrets": {
+    "BUILT_IN_FORGE_API_KEY": "Dmq9qRHEQ3p9NLANc6swDS",
+    "BUILT_IN_FORGE_API_URL": "https://forge.manus.ai",
+    "JWT_SECRET": "LK2aVaK7eyrwKjYKciFqMt",
+    "OAUTH_SERVER_URL": "https://api.manus.im",
+    "OWNER_NAME": "Cesar Valentim",
+    "OWNER_OPEN_ID": "D8F2aG4stdR4a2SVWsdHkG",
+    "VITE_ANALYTICS_ENDPOINT": "https://manus-analytics.com",
+    "VITE_ANALYTICS_WEBSITE_ID": "7edb4f90-76fc-41d8-963d-f504902d1016",
+    "VITE_APP_ID": "fDi2XfoZ7YwCvTMmDdEJiY",
+    "VITE_APP_LOGO": "https://files.manuscdn.com/user_upload_by_module/web_dev_logo/310419663029507809/zPWgTOBAcPCyEegC.png",
+    "VITE_APP_TITLE": "HEDGE LAB",
+    "VITE_FRONTEND_FORGE_API_KEY": "c7iuA3HiFZCNnTaEpoufCg",
+    "VITE_FRONTEND_FORGE_API_URL": "https://forge.manus.ai",
+    "VITE_OAUTH_PORTAL_URL": "https://manus.im"
+  },
+  "template_id": "web-db-user",
+  "test_command": "pnpm test"
+}
