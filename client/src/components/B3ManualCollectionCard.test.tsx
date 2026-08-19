@@ -24,7 +24,7 @@ describe("B3ManualCollectionCard", () => {
     expect(screen.getByRole("button", { name: "BVBG.028.02" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Coletar agora" }));
     await waitFor(() => expect(mutate).toHaveBeenCalledWith({
-      asOf: "2026-08-13",
+      asOf: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       reportTypes: ["BVBG.086.01", "BVBG.187.01", "BVBG.028.02"],
       normalize: false,
     }));

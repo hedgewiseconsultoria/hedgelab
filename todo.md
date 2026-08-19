@@ -166,4 +166,17 @@
 - [x] Documentar módulos de juros que já consomem a referência DI e bloqueios quantitativos que permanecem vigentes.
 - [x] Corrigir o HTML externo anexado para remover declarações duplicadas e normalizar os blocos de estilo da pré-visualização.
 - [x] Tratar a ausência de cotação PTAX como indisponibilidade orientativa na interface, sem expor erro bruto de consulta nem criar taxa substituta.
-- [ ] Preparar pacote do código-fonte do HEDGE LAB para transferência manual ao repositório GitHub do usuário, sem publicar pela hospedagem gerenciada.
+- [x] Preparar pacote do código-fonte do HEDGE LAB para transferência manual ao repositório GitHub do usuário, sem publicar pela hospedagem gerenciada.
+- [x] Documentar os campos exatos de configuração do Render para implantar o HEDGE LAB a partir do repositório GitHub, incluindo build, inicialização e variáveis necessárias.
+- [x] Corrigir as rotas da barra lateral para que Exposições, Dados de mercado, DataFrames, Cenários, Pacotes de cenário e Relatórios renderizem conteúdo próprio em vez de repetir a visão consolidada.
+- [x] Confirmar o commit GitHub e o redeploy Render da correção de navegação antes de considerar a atualização disponível no aplicativo público — o usuário confirmou que os painéis passaram a mudar no aplicativo publicado.
+- [x] Produzir roteiro passo a passo de uso do HEDGE LAB, incluindo cadastro, fontes oficiais, diagnóstico, cenários, exportação e limites quantitativos.
+- [x] Corrigir o contraste insuficiente de rótulos, textos auxiliares, campos, tabelas, valores monetários e estados vazios no painel Exposições.
+- [x] Orientar a carga e a validação do arquivo oficial BVBG.028.02 no painel Dados de mercado, preservando data-base e linhagem B3.
+- [x] Diagnosticar e tratar a resposta HTML inesperada da B3 na coleta BVBG, preservando o bloqueio de publicação quando o conteúdo não for um arquivo oficial válido.
+- [x] Permitir que a coleta e a normalização B3 usem armazenamento temporário da sessão quando o ambiente Render não possuir as credenciais de armazenamento nativas do Manus.
+- [x] Adicionar no cadastro de exposições a seleção explícita de natureza e indexador para reconhecer dívida CDI declarada sem inferência pela descrição.
+- [x] Adicionar ao cadastro de exposições uma variável econômica explícita, vinculando-a a natureza, indexador e alternativas de hedge elegíveis.
+- [x] Remodelar a experiência como fluxo didático: dados oficiais automáticos, cadastro econômico completo, alternativas e cenários, síntese de risco e intercâmbio final explicado.
+- [x] Remover importação, exportação e ações técnicas da visão consolidada, concentrando-as em módulo final de intercâmbio de sessão.
+- [x] Carregar fontes oficiais disponíveis automaticamente na abertura, com estados auditáveis de atualização, indisponibilidade e bloqueio sem dados substitutos.

@@ -30,25 +30,27 @@ describe("HedgeDiagnosisCard", () => {
   it("começa pela exposição e apresenta alternativas com requisitos, sem uma recomendação presumida", async () => {
     const onCanonicalDataframes = vi.fn();
     render(<HedgeDiagnosisCard onCanonicalDataframes={onCanonicalDataframes} />);
-    expect(screen.getByText("Comece pelo risco econômico, não pelo derivativo")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Diagnosticar" }));
+    expect(screen.getByText("O que a empresa quer proteger?")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Valor financeiro da exposição"), { target: { value: "100000" } });
+    fireEvent.change(screen.getByLabelText("Vencimento ou horizonte"), { target: { value: "2026-12-15" } });
+    fireEvent.click(screen.getByRole("button", { name: "Registrar e diagnosticar" }));
     await waitFor(() => expect(refetch).toHaveBeenCalled());
-    expect(screen.getByText("Futuro de dólar comercial (DOL)")).toBeTruthy();
-    expect(screen.getByText("série DOL")).toBeTruthy();
+    expect(await screen.findByText(/Futuro de dólar comercial \(DOL\)/)).toBeTruthy();
+    expect(screen.getByText("Alternativas identificadas")).toBeTruthy();
     expect(screen.queryByText(/recomendação/i)).toBeNull();
     await waitFor(() => expect(onCanonicalDataframes).toHaveBeenCalledWith(expect.objectContaining({ economic_situation_dataframe: [expect.objectContaining({ situation_kind: "USD_PAYABLE" })] })));
   });
 
   it("aplica o atalho de milho apenas ao contexto econômico e à referência B3", () => {
     render(<HedgeDiagnosisCard />);
-    const notional = screen.getByLabelText("Valor ou quantidade da exposição") as HTMLInputElement;
-    const maturity = screen.getByLabelText("Data de vencimento") as HTMLInputElement;
+    const notional = screen.getByLabelText("Valor financeiro da exposição") as HTMLInputElement;
+    const maturity = screen.getByLabelText("Vencimento ou horizonte") as HTMLInputElement;
     const originalNotional = notional.value;
     const originalMaturity = maturity.value;
     fireEvent.click(screen.getByRole("button", { name: "Compra de milho" }));
-    expect((screen.getByLabelText("Situação econômica") as HTMLSelectElement).value).toBe("COMMODITY_PURCHASE");
-    expect((screen.getByLabelText("Descrição") as HTMLInputElement).value).toContain("milho");
-    expect((screen.getByLabelText("Referência B3") as HTMLSelectElement).value).toBe("CCM");
+    expect((screen.getByLabelText("Variável econômica") as HTMLSelectElement).value).toBe("COMMODITY_PURCHASE");
+    expect((screen.getByLabelText("Descrição do compromisso") as HTMLInputElement).value).toContain("milho");
+    expect((screen.getByLabelText("Referência econômica") as HTMLSelectElement).value).toBe("CCM");
     expect(notional.value).toBe(originalNotional);
     expect(maturity.value).toBe(originalMaturity);
   });

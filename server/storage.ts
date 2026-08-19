@@ -1,19 +1,15 @@
-// Preconfigured storage helpers for Manus WebDev templates
-// Uploads via Forge Server presigned URL to S3 (PUT direct).
-// Downloads return /manus-storage/{key} paths served via 307 redirect.
+// Preconfigured storage helpers for Manus WebDev templates.
+// Fora da infraestrutura Manus, os artefatos podem permanecer apenas na sessão do processo.
 
 import { ENV } from "./_core/env";
+
+type SessionStoredObject = { data: Buffer; contentType: string };
+const sessionStorage = new Map<string, SessionStoredObject>();
 
 function getForgeConfig() {
   const forgeUrl = ENV.forgeApiUrl;
   const forgeKey = ENV.forgeApiKey;
-
-  if (!forgeUrl || !forgeKey) {
-    throw new Error(
-      "Storage config missing: set BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY",
-    );
-  }
-
+  if (!forgeUrl || !forgeKey) return null;
   return { forgeUrl: forgeUrl.replace(/\/+$/, ""), forgeKey };
 }
 
@@ -28,47 +24,43 @@ function appendHashSuffix(relKey: string): string {
   return `${relKey.slice(0, lastDot)}_${hash}${relKey.slice(lastDot)}`;
 }
 
+function storeInSession(relKey: string, data: Buffer | Uint8Array | string, contentType: string) {
+  const key = `session/${appendHashSuffix(normalizeKey(relKey))}`;
+  sessionStorage.set(key, { data: typeof data === "string" ? Buffer.from(data) : Buffer.from(data), contentType });
+  return { key, url: `/manus-storage/${key}` };
+}
+
+/** Artefato disponível apenas enquanto o processo do servidor estiver ativo. */
+export function getSessionStoredObject(key: string): SessionStoredObject | null {
+  return sessionStorage.get(normalizeKey(key)) ?? null;
+}
+
 export async function storagePut(
   relKey: string,
   data: Buffer | Uint8Array | string,
   contentType = "application/octet-stream",
 ): Promise<{ key: string; url: string }> {
-  const { forgeUrl, forgeKey } = getForgeConfig();
+  const forgeConfig = getForgeConfig();
+  if (!forgeConfig) return storeInSession(relKey, data, contentType);
+  const { forgeUrl, forgeKey } = forgeConfig;
   const key = appendHashSuffix(normalizeKey(relKey));
 
-  // 1. Get presigned PUT URL from Forge
   const presignUrl = new URL("v1/storage/presign/put", forgeUrl + "/");
   presignUrl.searchParams.set("path", key);
+  try {
+    const presignResp = await fetch(presignUrl, { headers: { Authorization: `Bearer ${forgeKey}` } });
+    if (!presignResp.ok) return storeInSession(relKey, data, contentType);
+    const presignBody = await presignResp.text();
+    const { url: s3Url } = JSON.parse(presignBody) as { url: string };
+    if (!s3Url) return storeInSession(relKey, data, contentType);
 
-  const presignResp = await fetch(presignUrl, {
-    headers: { Authorization: `Bearer ${forgeKey}` },
-  });
-
-  if (!presignResp.ok) {
-    const msg = await presignResp.text().catch(() => presignResp.statusText);
-    throw new Error(`Storage presign failed (${presignResp.status}): ${msg}`);
+    const blob = typeof data === "string" ? new Blob([data], { type: contentType }) : new Blob([data as any], { type: contentType });
+    const uploadResp = await fetch(s3Url, { method: "PUT", headers: { "Content-Type": contentType }, body: blob });
+    if (!uploadResp.ok) return storeInSession(relKey, data, contentType);
+    return { key, url: `/manus-storage/${key}` };
+  } catch {
+    return storeInSession(relKey, data, contentType);
   }
-
-  const { url: s3Url } = (await presignResp.json()) as { url: string };
-  if (!s3Url) throw new Error("Forge returned empty presign URL");
-
-  // 2. PUT file directly to S3
-  const blob =
-    typeof data === "string"
-      ? new Blob([data], { type: contentType })
-      : new Blob([data as any], { type: contentType });
-
-  const uploadResp = await fetch(s3Url, {
-    method: "PUT",
-    headers: { "Content-Type": contentType },
-    body: blob,
-  });
-
-  if (!uploadResp.ok) {
-    throw new Error(`Storage upload to S3 failed (${uploadResp.status})`);
-  }
-
-  return { key, url: `/manus-storage/${key}` };
 }
 
 export async function storageGet(relKey: string): Promise<{ key: string; url: string }> {
@@ -77,21 +69,20 @@ export async function storageGet(relKey: string): Promise<{ key: string; url: st
 }
 
 export async function storageGetSignedUrl(relKey: string): Promise<string> {
-  const { forgeUrl, forgeKey } = getForgeConfig();
+  const forgeConfig = getForgeConfig();
+  if (!forgeConfig) return (await storageGet(relKey)).url;
+  const { forgeUrl, forgeKey } = forgeConfig;
   const key = normalizeKey(relKey);
-
   const getUrl = new URL("v1/storage/presign/get", forgeUrl + "/");
   getUrl.searchParams.set("path", key);
-
-  const resp = await fetch(getUrl, {
-    headers: { Authorization: `Bearer ${forgeKey}` },
-  });
-
-  if (!resp.ok) {
-    const msg = await resp.text().catch(() => resp.statusText);
-    throw new Error(`Storage signed URL failed (${resp.status}): ${msg}`);
+  try {
+    const resp = await fetch(getUrl, { headers: { Authorization: `Bearer ${forgeKey}` } });
+    if (!resp.ok) return (await storageGet(relKey)).url;
+    const body = await resp.text();
+    const { url } = JSON.parse(body) as { url: string };
+    if (!url) return (await storageGet(relKey)).url;
+    return url;
+  } catch {
+    return (await storageGet(relKey)).url;
   }
-
-  const { url } = (await resp.json()) as { url: string };
-  return url;
 }

@@ -88,7 +88,7 @@ vi.mock("./OtcContractMasterCard", () => ({ default: ({ onMasterCreated, onHedge
 vi.mock("./HedgeEffectivenessCard", () => ({ default: ({ onSessionSnapshot }: any) => <button onClick={() => onSessionSnapshot(snapshot("effectiveness-history", "HEDGE_EFFECTIVENESS_SCREENING"))}>Emitir snapshot efetividade</button> }));
 vi.mock("./ResidualRiskCard", () => ({ default: ({ onSessionSnapshot }: any) => <button onClick={() => onSessionSnapshot(snapshot("residual-history", "RESIDUAL_PARAMETRIC_VAR"))}>Emitir snapshot risco residual</button> }));
 
-import HedgeDashboard from "./HedgeDashboard";
+import HedgeDashboard, { dashboardPanelByPath } from "./HedgeDashboard";
 
 afterEach(() => {
   cleanup();
@@ -102,6 +102,18 @@ afterEach(() => {
 });
 
 describe("HedgeDashboard", () => {
+  it("mapeia cada rota lateral para um painel funcional distinto", () => {
+    expect(dashboardPanelByPath).toEqual({
+      "/": "overview",
+      "/exposicoes": "exposures",
+      "/dados": "market",
+      "/dataframes": "dataframes",
+      "/cenarios": "scenarios",
+      "/historico": "history",
+      "/relatorios": "reports",
+    });
+  });
+
   it("apresenta o cabeçalho de sessão em português e anuncia métricas dinamicamente", () => {
     render(<HedgeDashboard />);
 

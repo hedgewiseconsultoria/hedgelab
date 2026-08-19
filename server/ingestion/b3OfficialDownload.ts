@@ -35,6 +35,14 @@ function sha256(data: Buffer) {
   return createHash("sha256").update(data).digest("hex");
 }
 
+function describeUnexpectedDownloadContent(body: Buffer, filename: string) {
+  const preview = body.subarray(0, 240).toString("utf8").replace(/\s+/g, " ").trim();
+  if (/<!doctype html|<html[\s>]/i.test(preview)) {
+    return `A B3 retornou uma página HTML, e não o arquivo oficial ${filename}. Nenhum arquivo ou DataFrame foi publicado.`;
+  }
+  return `A B3 retornou conteúdo que não é um arquivo ZIP válido para ${filename}. Nenhum arquivo ou DataFrame foi publicado.`;
+}
+
 /**
  * Baixa somente pelo fluxo publicado na página de Pesquisa por Pregão da B3.
  * O artefato externo e o ZIP interno são conservados, e cada XML é hashado
@@ -69,6 +77,7 @@ export async function collectB3OfficialReport(input: {
     clearTimeout(timeout);
   }
   if (outerBuffer.length === 0) throw new Error(`A B3 retornou pacote vazio para ${archiveFilename}.`);
+  if (outerBuffer.subarray(0, 2).toString("utf8") !== "PK") throw new Error(describeUnexpectedDownloadContent(outerBuffer, archiveFilename));
 
   const outerZip = new AdmZip(outerBuffer);
   const innerEntry = outerZip.getEntries().find(entry => entry.entryName === archiveFilename);

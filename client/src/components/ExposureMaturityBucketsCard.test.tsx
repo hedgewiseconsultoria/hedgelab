@@ -17,5 +17,7 @@ describe("ExposureMaturityBucketsCard", () => {
     expect(screen.getByText(/Não calcula valor presente, MTM, risco de juros ou Greeks/i)).toBeTruthy();
     expect(container.querySelector(".overflow-x-auto")).toBeTruthy();
     expect(container.querySelector("table")?.className).toContain("min-w-[620px]");
+    expect(container.querySelector("tbody")?.className).toContain("text-[#294a50]");
+    expect(screen.getByText("Vencimento").closest("thead")?.className).toContain("text-[#456970]");
   });
 });

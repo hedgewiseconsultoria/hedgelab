@@ -32,6 +32,14 @@ describe("coletor oficial B3", () => {
     await expect(collectB3OfficialPriceReport({ reportType: "BVBG.187.01", asOf: "14/08/2026" })).rejects.toThrow("AAAA-MM-DD");
   });
 
+  it("rejeita uma página HTML retornada no lugar do arquivo B3 sem publicar dados", async () => {
+    await expect(collectB3OfficialPriceReport({
+      reportType: "BVBG.086.01",
+      asOf: "2026-08-14",
+      fetcher: async () => new Response("<!DOCTYPE html><html><body>Indisponível</body></html>", { status: 200 }),
+    })).rejects.toThrow("A B3 retornou uma página HTML");
+  });
+
   it("inspeciona o InstrumentReport em modo de metadados sem descompactar o XML", async () => {
     const body = nestedZip("IN260814.zip", "BVBG.028.02_BV000327.xml");
     const output = await collectB3OfficialReport({ reportType: "BVBG.028.02", asOf: "2026-08-14", metadataOnly: true, fetcher: async () => new Response(body, { status: 200 }) });

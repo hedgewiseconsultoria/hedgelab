@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { getSessionStoredObject } from "../storage";
 import { ENV } from "./env";
 
 export function registerStorageProxy(app: Express) {
@@ -6,6 +7,13 @@ export function registerStorageProxy(app: Express) {
     const key = (req.params as Record<string, string>)[0];
     if (!key) {
       res.status(400).send("Missing storage key");
+      return;
+    }
+
+    const sessionObject = getSessionStoredObject(key);
+    if (sessionObject) {
+      res.set("Cache-Control", "no-store");
+      res.type(sessionObject.contentType).send(sessionObject.data);
       return;
     }
 
