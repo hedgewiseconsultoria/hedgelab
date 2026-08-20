@@ -326,14 +326,15 @@ export const appRouter = router({
         asOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         reportTypes: z.array(z.enum(["BVBG.086.01", "BVBG.187.01", "BVBG.028.02"])).min(1).max(3),
         normalize: z.boolean().default(false),
+        persistRaw: z.boolean().default(false),
       }))
       .mutation(async ({ input }) => {
         const collectedAtUtc = new Date().toISOString();
         const reports = [];
         for (const reportType of input.reportTypes) {
           const download = reportType === "BVBG.028.02"
-            ? await collectB3OfficialReport({ reportType, asOf: input.asOf, persistRaw: true, timeoutMs: B3_BULLETIN_DOWNLOAD_TIMEOUT_MS })
-            : await collectB3OfficialPriceReport({ reportType, asOf: input.asOf, persistRaw: true, timeoutMs: B3_BULLETIN_DOWNLOAD_TIMEOUT_MS });
+            ? await collectB3OfficialReport({ reportType, asOf: input.asOf, persistRaw: input.persistRaw, timeoutMs: B3_BULLETIN_DOWNLOAD_TIMEOUT_MS })
+            : await collectB3OfficialPriceReport({ reportType, asOf: input.asOf, persistRaw: input.persistRaw, timeoutMs: B3_BULLETIN_DOWNLOAD_TIMEOUT_MS });
           const normalizations = [];
           if (input.normalize) {
             for (const xml of download.xmlFiles) {

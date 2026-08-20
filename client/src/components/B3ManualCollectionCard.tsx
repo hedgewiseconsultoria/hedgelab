@@ -43,7 +43,7 @@ export default function B3ManualCollectionCard({ onLineage, onNormalizations, au
   useEffect(() => {
     if (!autoCollect || autoStarted.current) return;
     autoStarted.current = true;
-    collection.mutate({ asOf, reportTypes: [...B3_REPORTS], normalize: false });
+    collection.mutate({ asOf, reportTypes: [...B3_REPORTS], normalize: false, persistRaw: false });
   }, [asOf, autoCollect, collection]);
   useEffect(() => {
     if (!collection.data || !onLineage) return;
@@ -71,7 +71,7 @@ export default function B3ManualCollectionCard({ onLineage, onNormalizations, au
       toast.error("Selecione ao menos um boletim B3.");
       return;
     }
-    collection.mutate({ asOf, reportTypes, normalize });
+    collection.mutate({ asOf, reportTypes, normalize, persistRaw: false });
   }
 
   return (
@@ -84,7 +84,7 @@ export default function B3ManualCollectionCard({ onLineage, onNormalizations, au
         <p className="mt-3 text-xs leading-5 text-[#5d7875]">A coleta usa exclusivamente o fluxo oficial de Pesquisa por Pregão. PriceReport, relatório simplificado e InstrumentReport podem ser preservados no armazenamento de objetos, sem gravação em banco de dados.</p>
       </CardHeader>
       <CardContent className="p-5">
-        {autoCollect ? <div className="rounded-xl border border-[#cce4df] bg-[#f2fbf7] p-4"><p className="text-sm font-semibold text-[#1d6257]">Atualização automática dos três boletins oficiais B3</p><p className="mt-1 text-xs leading-5 text-[#466962]">A abertura consulta PriceReport, relatório simplificado e InstrumentReport na última data útil. Nenhuma curva, preço ou DataFrame é publicado se a B3 não devolver arquivos válidos.</p><p className="mt-3 text-xs font-medium text-[#2f7669]">{collection.isPending ? "Baixando, verificando ZIPs e calculando hashes…" : collection.data ? `${collection.data.reports.length} boletim(ns) B3 verificado(s) nesta sessão.` : collection.isError ? "A B3 não respondeu com arquivo oficial válido; a sessão permanece sem dados B3." : "Aguardando início da atualização oficial…"}</p></div> : <><div className="grid gap-4 md:grid-cols-[190px_1fr_auto] md:items-end">
+        {autoCollect ? <div className="rounded-xl border border-[#cce4df] bg-[#f2fbf7] p-4"><p className="text-sm font-semibold text-[#1d6257]">Atualização automática dos três boletins oficiais B3</p><p className="mt-1 text-xs leading-5 text-[#466962]">A abertura consulta PriceReport, relatório simplificado e InstrumentReport na última data útil. Valida ZIPs, data-base e hashes sem reter arquivos grandes na memória do serviço. Nenhuma curva, preço ou DataFrame é publicado se a B3 não devolver arquivos válidos.</p><p className="mt-3 text-xs font-medium text-[#2f7669]">{collection.isPending ? "Baixando, verificando ZIPs e calculando hashes…" : collection.data ? `${collection.data.reports.length} boletim(ns) B3 verificado(s) nesta sessão.` : collection.isError ? "A B3 não respondeu com arquivo oficial válido; a sessão permanece sem dados B3." : "Aguardando início da atualização oficial…"}</p></div> : <><div className="grid gap-4 md:grid-cols-[190px_1fr_auto] md:items-end">
           <div><Label htmlFor="b3-collection-asof" className="text-xs text-[#496762]">Data-base</Label><Input id="b3-collection-asof" type="date" value={asOf} onChange={event => setAsOf(event.target.value)} className="mt-1.5 border-[#d8e5e2]" /></div>
           <fieldset><legend className="text-xs font-medium text-[#496762]">Boletins</legend><div className="mt-1.5 flex flex-wrap gap-2">{B3_REPORTS.map(reportType => <button key={reportType} type="button" onClick={() => toggleReport(reportType)} aria-pressed={reportTypes.includes(reportType)} className={`rounded-lg border px-3 py-2 font-mono text-xs font-semibold transition ${reportTypes.includes(reportType) ? "border-[#2b9b83] bg-[#eaf9f4] text-[#176957]" : "border-[#d8e5e2] bg-white text-[#607a76] hover:bg-[#f5faf8]"}`}>{reportType}</button>)}</div></fieldset>
           <Button onClick={collectReports} disabled={collection.isPending || !asOf} className="bg-[#173c45] text-white hover:bg-[#24515a]">{collection.isPending ? <Loader2 className="animate-spin" /> : <Archive />} Coletar agora</Button>

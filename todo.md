@@ -182,3 +182,6 @@
 - [x] Carregar fontes oficiais disponíveis automaticamente na abertura, com estados auditáveis de atualização, indisponibilidade e bloqueio sem dados substitutos.
 - [x] Corrigir globalmente o contraste de rótulos, valores predefinidos, placeholders, campos desabilitados e botões inativos nos painéis Dados de mercado e Cenários, estendendo a validação aos demais cards.
 - [x] Diagnosticar e corrigir a recuperação automática dos boletins oficiais B3 no ambiente publicado, sem liberar DataFrames quando o download, a validação ou o armazenamento falharem.
+- [ ] Corrigir o diagnóstico de pagamento em USD para que uma exposição preenchida seja validada, registrada e receba alternativas elegíveis, sem o bloqueio genérico observado na interface publicada.
+- [ ] Corrigir a chamada do cálculo didático de cenários no Render, que atualmente recebe HTML em vez do JSON tRPC esperado para os parâmetros DOL declarados.
+- [ ] Estabilizar o Web Service Render, que inicia na porta 10000 e encerra posteriormente com LIFECYCLE Command failed, retornando 502 na URL pública.

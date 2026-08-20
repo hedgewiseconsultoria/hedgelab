@@ -27,6 +27,7 @@ describe("B3ManualCollectionCard", () => {
       asOf: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       reportTypes: ["BVBG.086.01", "BVBG.187.01", "BVBG.028.02"],
       normalize: false,
+      persistRaw: false,
     }));
   });
 
@@ -36,6 +37,7 @@ describe("B3ManualCollectionCard", () => {
       asOf: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       reportTypes: ["BVBG.086.01", "BVBG.187.01", "BVBG.028.02"],
       normalize: false,
+      persistRaw: false,
     }));
     expect(screen.queryByRole("button", { name: "Coletar agora" })).toBeNull();
   });
