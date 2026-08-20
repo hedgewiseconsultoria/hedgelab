@@ -44,8 +44,8 @@ describe("marketData.collectB3Reports", () => {
       reportTypes: ["BVBG.086.01", "BVBG.187.01"],
     });
 
-    expect(mocks.collectB3OfficialPriceReport).toHaveBeenNthCalledWith(1, { reportType: "BVBG.086.01", asOf: "2026-08-13", persistRaw: true });
-    expect(mocks.collectB3OfficialPriceReport).toHaveBeenNthCalledWith(2, { reportType: "BVBG.187.01", asOf: "2026-08-13", persistRaw: true });
+    expect(mocks.collectB3OfficialPriceReport).toHaveBeenNthCalledWith(1, { reportType: "BVBG.086.01", asOf: "2026-08-13", persistRaw: true, timeoutMs: 150_000 });
+    expect(mocks.collectB3OfficialPriceReport).toHaveBeenNthCalledWith(2, { reportType: "BVBG.187.01", asOf: "2026-08-13", persistRaw: true, timeoutMs: 150_000 });
     expect(result.storageMode).toBe("object_storage_without_database");
     expect(result.reports).toHaveLength(2);
     expect(result.reports[0]?.xmlFiles[0]).toEqual({ filename: "BVBG.086.01_real.xml", bytes: 150813745, sha256: "xml-hash" });
@@ -56,7 +56,7 @@ describe("marketData.collectB3Reports", () => {
     const instrumentDownload = { ...mockedDownload("BVBG.086.01"), reportType: "BVBG.028.02" as const, xmlFiles: [{ filename: "BVBG.028.02_real.xml", bytes: 123, sha256: "instrument-hash", body: Buffer.from("instrumento") }] };
     mocks.collectB3OfficialReport.mockResolvedValueOnce(instrumentDownload);
     const result = await appRouter.createCaller(ctx).marketData.collectB3Reports({ asOf: "2026-08-13", reportTypes: ["BVBG.028.02"], normalize: false });
-    expect(mocks.collectB3OfficialReport).toHaveBeenCalledWith({ reportType: "BVBG.028.02", asOf: "2026-08-13", persistRaw: true });
+    expect(mocks.collectB3OfficialReport).toHaveBeenCalledWith({ reportType: "BVBG.028.02", asOf: "2026-08-13", persistRaw: true, timeoutMs: 150_000 });
     expect(result.reports[0]).toMatchObject({ reportType: "BVBG.028.02", xmlFiles: [{ filename: "BVBG.028.02_real.xml", sha256: "instrument-hash" }] });
   });
 

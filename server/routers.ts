@@ -1,5 +1,6 @@
-import { Readable } from "node:stream";
 import { z } from "zod";
+import { createHash } from "node:crypto";
+import { Readable, Transform } from "node:stream";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { fetchAnbimaEttj } from "./ingestion/anbimaEttj";
@@ -16,7 +17,7 @@ import { sizeB3CommodityOptionReference } from "./domain/commodityOptionSizing";
 import { sizeB3DollarOptionReference } from "./domain/fxOptionSizing";
 import { calculateFxStress, calculateParametricVar, calculateResidualRisk } from "./domain/fxRiskScenario";
 import { B3_REAL_SNAPSHOT } from "./domain/b3RealSnapshot";
-import { collectB3OfficialPriceReport, collectB3OfficialReport } from "./ingestion/b3OfficialDownload";
+import { collectB3OfficialPriceReport, collectB3OfficialReport, type B3OfficialXmlFile } from "./ingestion/b3OfficialDownload";
 import { parseB3PriceReportXmlStream } from "./ingestion/b3PriceReportParser";
 import { parseB3InstrumentXmlStream } from "./ingestion/b3InstrumentParser";
 import { storageGetSignedUrl, storagePut } from "./storage";
@@ -43,6 +44,24 @@ import { buildNormalizedB3ObservationCandidates, type B3NormalizedManifest } fro
 
 const B3_NORMALIZED_STORAGE_PREFIX = "b3/normalized/";
 const B3_DI1_DOWNLOAD_TIMEOUT_MS = 45_000;
+const B3_BULLETIN_DOWNLOAD_TIMEOUT_MS = 150_000;
+
+async function openB3XmlWithIncrementalHash(xml: B3OfficialXmlFile) {
+  const raw = xml.body ? Readable.from([xml.body]) : xml.openStream ? await xml.openStream() : null;
+  if (!raw) throw new Error(`O XML ${xml.filename} não possui stream para normalização.`);
+  const hash = createHash("sha256");
+  const hashed = new Transform({ transform(chunk, _encoding, callback) { hash.update(chunk); callback(null, chunk); } });
+  raw.once("error", error => hashed.destroy(error));
+  raw.pipe(hashed);
+  return {
+    stream: hashed as Readable,
+    finalizeHash: () => {
+      const computed = hash.digest("hex");
+      xml.sha256 ??= computed;
+      return xml.sha256;
+    },
+  };
+}
 
 function assertB3NormalizedStorageKey(key: string, kind: "manifest" | "csv") {
   if (!key.startsWith(B3_NORMALIZED_STORAGE_PREFIX)) throw new Error(`Chave de ${kind} rejeitada: o artefato deve pertencer ao pipeline normalizado B3.`);
@@ -81,10 +100,10 @@ async function normalizeCollectedB3PriceXml(input: {
   asOf: string;
   officialDownloadUrl: string;
   collectedAtUtc: string;
-  xml: { filename: string; sha256: string | null; body: Buffer | null };
+  xml: B3OfficialXmlFile;
 }) {
-  if (!input.xml.body || !input.xml.sha256) throw new Error(`O XML ${input.xml.filename} não possui bytes e hash para normalização.`);
-  const dataset = await parseB3PriceReportXmlStream(Readable.from(input.xml.body), {
+  const source = await openB3XmlWithIncrementalHash(input.xml);
+  const dataset = await parseB3PriceReportXmlStream(source.stream, {
     sourceId: "B3_PUBLIC_FILES",
     sourceUrl: input.officialDownloadUrl,
     sourceFile: input.xml.filename,
@@ -93,6 +112,7 @@ async function normalizeCollectedB3PriceXml(input: {
     sourceHashSha256: input.xml.sha256,
     expectedReportType: input.reportType,
   });
+  dataset.lineage.sourceHashSha256 = source.finalizeHash();
   const csv = dataframeToCsv(dataset.dataframe as Array<Record<string, unknown>>);
   const csvBytes = Buffer.from(`\ufeff${csv}`, "utf8");
   const csvFilename = input.xml.filename.replace(/\.xml$/i, ".csv");
@@ -125,10 +145,10 @@ async function normalizeCollectedB3InstrumentXml(input: {
   asOf: string;
   officialDownloadUrl: string;
   collectedAtUtc: string;
-  xml: { filename: string; sha256: string | null; body: Buffer | null };
+  xml: B3OfficialXmlFile;
 }) {
-  if (!input.xml.body || !input.xml.sha256) throw new Error(`O XML ${input.xml.filename} não possui bytes e hash para normalização.`);
-  const dataset = await parseB3InstrumentXmlStream(Readable.from(input.xml.body), {
+  const source = await openB3XmlWithIncrementalHash(input.xml);
+  const dataset = await parseB3InstrumentXmlStream(source.stream, {
     sourceId: "B3_PUBLIC_FILES",
     sourceUrl: input.officialDownloadUrl,
     sourceFile: input.xml.filename,
@@ -136,6 +156,7 @@ async function normalizeCollectedB3InstrumentXml(input: {
     sourceAsOf: input.asOf,
     sourceHashSha256: input.xml.sha256,
   });
+  dataset.lineage.sourceHashSha256 = source.finalizeHash();
   const csvBytes = Buffer.from(`\ufeff${dataframeToCsv(dataset.instrumentMasterDataframe as Array<Record<string, unknown>>)}`, "utf8");
   const csvFilename = input.xml.filename.replace(/\.xml$/i, ".instrument-master.csv");
   const keyPrefix = `b3/normalized/${input.asOf}/BVBG.028.02/${csvFilename}`;
@@ -170,20 +191,26 @@ async function collectAndBuildB3DiFutureCurve(input: { asOf: string }) {
     collectB3OfficialReport({ reportType: "BVBG.086.01", asOf: input.asOf, persistRaw: true, timeoutMs: B3_DI1_DOWNLOAD_TIMEOUT_MS }),
     collectB3OfficialReport({ reportType: "BVBG.028.02", asOf: input.asOf, persistRaw: true, timeoutMs: B3_DI1_DOWNLOAD_TIMEOUT_MS }),
   ]);
-  const priceDatasets = await Promise.all(priceDownload.xmlFiles.map(async xml => {
-    if (!xml.body || !xml.sha256) throw new Error(`O XML B3 ${xml.filename} não possui bytes e hash para a curva DI.`);
-    return parseB3PriceReportXmlStream(Readable.from(xml.body), {
+  const priceDatasets = [];
+  for (const xml of priceDownload.xmlFiles) {
+    const source = await openB3XmlWithIncrementalHash(xml);
+    const dataset = await parseB3PriceReportXmlStream(source.stream, {
       sourceId: "B3_PUBLIC_FILES", sourceUrl: priceDownload.officialDownloadUrl, sourceFile: xml.filename, extractedAtUtc: collectedAtUtc,
       sourceAsOf: input.asOf, sourceHashSha256: xml.sha256, expectedReportType: "BVBG.086.01",
     });
-  }));
-  const instrumentDatasets = await Promise.all(instrumentDownload.xmlFiles.map(async xml => {
-    if (!xml.body || !xml.sha256) throw new Error(`O XML B3 ${xml.filename} não possui bytes e hash para a curva DI.`);
-    return parseB3InstrumentXmlStream(Readable.from(xml.body), {
+    dataset.lineage.sourceHashSha256 = source.finalizeHash();
+    priceDatasets.push(dataset);
+  }
+  const instrumentDatasets = [];
+  for (const xml of instrumentDownload.xmlFiles) {
+    const source = await openB3XmlWithIncrementalHash(xml);
+    const dataset = await parseB3InstrumentXmlStream(source.stream, {
       sourceId: "B3_PUBLIC_FILES", sourceUrl: instrumentDownload.officialDownloadUrl, sourceFile: xml.filename, extractedAtUtc: collectedAtUtc,
       sourceAsOf: input.asOf, sourceHashSha256: xml.sha256,
     });
-  }));
+    dataset.lineage.sourceHashSha256 = source.finalizeHash();
+    instrumentDatasets.push(dataset);
+  }
   const market = buildB3MarketDataset(priceDatasets.flatMap(dataset => dataset.dataframe), instrumentDatasets.flatMap(dataset => dataset.instrumentMasterDataframe));
   const curve = buildDiFutureCurveVertices(market, "B3_TRADING_2026");
   const csvBytes = Buffer.from(`\ufeff${dataframeToCsv(curve.dataframe as Array<Record<string, unknown>>)}`, "utf8");
@@ -305,8 +332,8 @@ export const appRouter = router({
         const reports = [];
         for (const reportType of input.reportTypes) {
           const download = reportType === "BVBG.028.02"
-            ? await collectB3OfficialReport({ reportType, asOf: input.asOf, persistRaw: true })
-            : await collectB3OfficialPriceReport({ reportType, asOf: input.asOf, persistRaw: true });
+            ? await collectB3OfficialReport({ reportType, asOf: input.asOf, persistRaw: true, timeoutMs: B3_BULLETIN_DOWNLOAD_TIMEOUT_MS })
+            : await collectB3OfficialPriceReport({ reportType, asOf: input.asOf, persistRaw: true, timeoutMs: B3_BULLETIN_DOWNLOAD_TIMEOUT_MS });
           const normalizations = [];
           if (input.normalize) {
             for (const xml of download.xmlFiles) {

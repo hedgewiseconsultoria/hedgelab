@@ -30,6 +30,16 @@ describe("B3ManualCollectionCard", () => {
     }));
   });
 
+  it("na abertura preserva primeiro os boletins oficiais sem normalizar o InstrumentReport volumoso", async () => {
+    render(<B3ManualCollectionCard autoCollect />);
+    await waitFor(() => expect(mutate).toHaveBeenCalledWith({
+      asOf: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      reportTypes: ["BVBG.086.01", "BVBG.187.01", "BVBG.028.02"],
+      normalize: false,
+    }));
+    expect(screen.queryByRole("button", { name: "Coletar agora" })).toBeNull();
+  });
+
   it("publica arquivos, hashes e data-base dos XMLs oficiais à sessão", async () => {
     state.data = { reports: [{ reportType: "BVBG.086.01", officialDownloadUrl: "https://www.b3.com.br/pesquisapregao/download?filelist=PR260817.zip,", sourceAsOf: "2026-08-17", validationStatus: "downloaded", outerArchive: { filename: "PR.zip", bytes: 1, sha256: "a".repeat(64) }, innerArchive: { filename: "PR.inner.zip", bytes: 1 }, xmlFiles: [{ filename: "BVBG.086.01.xml", bytes: 1, sha256: "b".repeat(64) }], normalizations: [] }] };
     const onLineage = vi.fn();

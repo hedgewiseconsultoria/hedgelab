@@ -1,5 +1,7 @@
 import AdmZip from "adm-zip";
 import { createHash } from "node:crypto";
+import { Readable } from "node:stream";
+import yauzl from "yauzl";
 import { storagePut } from "../storage";
 import type { B3PriceReportType } from "../domain/dataframes";
 
@@ -13,13 +15,15 @@ const reportSpec: Record<B3OfficialReportType, { prefix: "PR" | "SPRD" | "IN"; c
   "BVBG.028.02": { prefix: "IN", contentType: "application/zip" },
 };
 
+export type B3OfficialXmlFile = { filename: string; bytes: number; sha256: string | null; body: Buffer | null; openStream?: () => Promise<Readable> };
+
 export type B3OfficialDownload = {
   reportType: B3OfficialReportType;
   sourceAsOf: string;
   officialDownloadUrl: string;
   outerArchive: { filename: string; bytes: number; sha256: string; storageKey: string | null; storageUrl: string | null };
   innerArchive: { filename: string; bytes: number; sha256: string };
-  xmlFiles: Array<{ filename: string; bytes: number; sha256: string | null; body: Buffer | null }>;
+  xmlFiles: B3OfficialXmlFile[];
   validationStatus: "downloaded" | "validated";
 };
 
@@ -41,6 +45,56 @@ function describeUnexpectedDownloadContent(body: Buffer, filename: string) {
     return `A B3 retornou uma página HTML, e não o arquivo oficial ${filename}. Nenhum arquivo ou DataFrame foi publicado.`;
   }
   return `A B3 retornou conteúdo que não é um arquivo ZIP válido para ${filename}. Nenhum arquivo ou DataFrame foi publicado.`;
+}
+
+function openZipFromBuffer(buffer: Buffer) {
+  return new Promise<yauzl.ZipFile>((resolve, reject) => {
+    yauzl.fromBuffer(buffer, { lazyEntries: true, autoClose: false }, (error, zip) => {
+      if (error || !zip) reject(error ?? new Error("Não foi possível abrir o ZIP B3."));
+      else resolve(zip);
+    });
+  });
+}
+
+async function openInnerB3XmlStream(innerBuffer: Buffer, filename: string): Promise<Readable> {
+  const zip = await openZipFromBuffer(innerBuffer);
+  return new Promise<Readable>((resolve, reject) => {
+    let opened = false;
+    const fail = (error: Error) => { zip.close(); reject(error); };
+    zip.on("entry", entry => {
+      if (entry.fileName !== filename) {
+        zip.readEntry();
+        return;
+      }
+      opened = true;
+      zip.openReadStream(entry, (error, stream) => {
+        if (error || !stream) return fail(error ?? new Error(`Não foi possível abrir o XML B3 ${filename}.`));
+        stream.once("end", () => zip.close());
+        stream.once("error", () => zip.close());
+        resolve(stream);
+      });
+    });
+    zip.once("end", () => { if (!opened) fail(new Error(`O ZIP interno não contém o XML B3 ${filename}.`)); });
+    zip.once("error", fail);
+    zip.readEntry();
+  });
+}
+
+async function inspectInnerB3XmlEntries(innerBuffer: Buffer, reportType: B3OfficialReportType, metadataOnly: boolean): Promise<B3OfficialXmlFile[]> {
+  const zip = await openZipFromBuffer(innerBuffer);
+  const xmlFiles: B3OfficialXmlFile[] = [];
+  await new Promise<void>((resolve, reject) => {
+    zip.on("entry", entry => {
+      if (!entry.fileName.endsWith("/") && entry.fileName.startsWith(`${reportType}_`) && entry.fileName.endsWith(".xml")) {
+        xmlFiles.push({ filename: entry.fileName, bytes: entry.uncompressedSize, sha256: null, body: null, ...(metadataOnly ? {} : { openStream: () => openInnerB3XmlStream(innerBuffer, entry.fileName) }) });
+      }
+      zip.readEntry();
+    });
+    zip.once("end", resolve);
+    zip.once("error", reject);
+    zip.readEntry();
+  }).finally(() => zip.close());
+  return xmlFiles;
 }
 
 /**
@@ -83,14 +137,7 @@ export async function collectB3OfficialReport(input: {
   const innerEntry = outerZip.getEntries().find(entry => entry.entryName === archiveFilename);
   if (!innerEntry) throw new Error(`O pacote externo não contém o ZIP interno ${archiveFilename}.`);
   const innerBuffer = innerEntry.getData();
-  const innerZip = new AdmZip(innerBuffer);
-  const xmlFiles = innerZip.getEntries()
-    .filter(entry => !entry.isDirectory && entry.entryName.startsWith(`${input.reportType}_`) && entry.entryName.endsWith(".xml"))
-    .map(entry => {
-      if (input.metadataOnly) return { filename: entry.entryName, bytes: entry.header.size, sha256: null, body: null };
-      const body = entry.getData();
-      return { filename: entry.entryName, bytes: body.length, sha256: sha256(body), body };
-    });
+  const xmlFiles = await inspectInnerB3XmlEntries(innerBuffer, input.reportType, input.metadataOnly ?? false);
   if (xmlFiles.length === 0) throw new Error(`O ZIP interno ${archiveFilename} não contém XML ${input.reportType}.`);
 
   let storageKey: string | null = null;
@@ -117,6 +164,7 @@ export async function collectB3OfficialPriceReport(input: {
   asOf: string;
   persistRaw?: boolean;
   metadataOnly?: boolean;
+  timeoutMs?: number;
   fetcher?: FetchLike;
 }) {
   return collectB3OfficialReport(input);

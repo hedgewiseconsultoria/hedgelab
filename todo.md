@@ -180,3 +180,5 @@
 - [x] Remodelar a experiência como fluxo didático: dados oficiais automáticos, cadastro econômico completo, alternativas e cenários, síntese de risco e intercâmbio final explicado.
 - [x] Remover importação, exportação e ações técnicas da visão consolidada, concentrando-as em módulo final de intercâmbio de sessão.
 - [x] Carregar fontes oficiais disponíveis automaticamente na abertura, com estados auditáveis de atualização, indisponibilidade e bloqueio sem dados substitutos.
+- [x] Corrigir globalmente o contraste de rótulos, valores predefinidos, placeholders, campos desabilitados e botões inativos nos painéis Dados de mercado e Cenários, estendendo a validação aos demais cards.
+- [x] Diagnosticar e corrigir a recuperação automática dos boletins oficiais B3 no ambiente publicado, sem liberar DataFrames quando o download, a validação ou o armazenamento falharem.

@@ -117,6 +117,52 @@
     font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   }
 
+  /* Estados bloqueados são informativos no HEDGE LAB: devem permanecer legíveis. */
+  input:disabled,
+  select:disabled,
+  textarea:disabled,
+  [data-slot="input"]:disabled,
+  [data-slot="select-trigger"][data-disabled],
+  [data-slot="select-trigger"]:disabled {
+    opacity: 1 !important;
+    color: #3e5960 !important;
+    -webkit-text-fill-color: #3e5960;
+    background-color: #f1f5f4 !important;
+    border-color: #b8cbc7 !important;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    opacity: 1 !important;
+    color: #60767b !important;
+  }
+
+  main label,
+  main legend,
+  main [data-slot="label"] {
+    opacity: 1 !important;
+    color: #36535a !important;
+  }
+
+  main .text-muted-foreground {
+    opacity: 1 !important;
+    color: #506970 !important;
+  }
+
+  main input:not(:disabled),
+  main select:not(:disabled),
+  main textarea:not(:disabled) {
+    color: #1d4049 !important;
+  }
+
+  button:disabled,
+  [data-slot="button"]:disabled {
+    opacity: 1 !important;
+    color: #ffffff !important;
+    background-color: #4c6971 !important;
+    border-color: #4c6971 !important;
+  }
+
   .font-mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
