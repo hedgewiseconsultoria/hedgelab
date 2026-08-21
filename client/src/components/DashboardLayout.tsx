@@ -26,13 +26,13 @@ import {
 } from "./ui/sidebar";
 
 const navigation = [
-  { icon: BarChart3, label: "Visão consolidada", path: "/" },
-  { icon: CircleDollarSign, label: "Exposições", path: "/exposicoes" },
-  { icon: DatabaseZap, label: "Dados de mercado", path: "/dados" },
-  { icon: TableProperties, label: "DataFrames", path: "/dataframes" },
-  { icon: Activity, label: "Cenários", path: "/cenarios" },
-  { icon: History, label: "Pacotes de cenário", path: "/historico" },
-  { icon: FileText, label: "Relatórios", path: "/relatorios" },
+  { icon: BarChart3, label: "Início", path: "/" },
+  { icon: CircleDollarSign, label: "Empresas e exposições", path: "/exposicoes" },
+  { icon: Activity, label: "Simular e comparar", path: "/cenarios" },
+  { icon: FileText, label: "Relatório executivo", path: "/relatorios" },
+  { icon: History, label: "Histórico local", path: "/historico" },
+  { icon: DatabaseZap, label: "Base técnica", path: "/dados" },
+  { icon: TableProperties, label: "DataFrames da sessão", path: "/dataframes" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -67,7 +67,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#72d2bf]">HEDGE</p>
                   <p className="mt-1 text-sm font-semibold tracking-[0.17em] text-white">LAB</p>
-                  <p className="mt-1 text-[8px] font-medium uppercase tracking-[0.14em] text-[#6e8790]">Laboratório de risco</p>
+                  <p className="mt-1 text-[8px] font-medium uppercase tracking-[0.14em] text-[#6e8790]">Consultoria de risco</p>
                 </div>
               </div>
             )}
@@ -75,7 +75,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
 
         <SidebarContent className="gap-0 px-2 py-5">
-          <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#5f7780] group-data-[collapsible=icon]:hidden">Plataforma</p>
+          <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#5f7780] group-data-[collapsible=icon]:hidden">Jornada de hedge</p>
           <SidebarMenu>
             {navigation.map(item => {
               const active = current.path === item.path;

@@ -15,6 +15,7 @@ import B3InstrumentMasterSelector, { type B3ProductSpecificationSessionRow } fro
 import B3ManualCollectionCard, { type B3ManualLineageRow, type B3NormalizedArtifact } from "@/components/B3ManualCollectionCard";
 import B3ObservationSelector from "@/components/B3ObservationSelector";
 import B3DiFutureCurveCard from "@/components/B3DiFutureCurveCard";
+import B3DiCurveEvidenceChart from "@/components/B3DiCurveEvidenceChart";
 import DiCurveReferenceStatusCard from "@/components/DiCurveReferenceStatusCard";
 import Di1OptionContractReferenceCard from "@/components/Di1OptionContractReferenceCard";
 import FraDi1StructureReferenceCard from "@/components/FraDi1StructureReferenceCard";
@@ -30,6 +31,7 @@ import SelicOverAccumulationCard from "@/components/SelicOverAccumulationCard";
 import ExposureMaturityBucketsCard from "@/components/ExposureMaturityBucketsCard";
 import CdiDebtCoverageSummaryCard from "@/components/CdiDebtCoverageSummaryCard";
 import ExecutiveFlowOverview from "@/components/ExecutiveFlowOverview";
+import ConsultantCommandCenter from "@/components/ConsultantCommandCenter";
 import HedgeDiagnosisCard, { type GuidedExposurePublication } from "@/components/HedgeDiagnosisCard";
 import LinearFuturesScenarioCard from "@/components/LinearFuturesScenarioCard";
 import Di1VariationMarginCard from "@/components/Di1VariationMarginCard";
@@ -174,7 +176,7 @@ function SourceChip({ label, detail, status, action, spinning }: { label: string
 }
 
 export default function HedgeDashboard() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const requestedPanel = dashboardPanelByPath[location] ?? "overview";
   const activePanel = requestedPanel;
   const panelClass = (panel: DashboardPanel) => panel === "exposures" || panel === "overview" ? "hidden" : activePanel === panel ? "" : "hidden";
@@ -190,6 +192,7 @@ export default function HedgeDashboard() {
   const [diCurveReference, setDiCurveReference] = useState<DiFutureCurveDataset | null>(null);
   const [manualB3Lineage, setManualB3Lineage] = useState<B3ManualLineageRow[]>([]);
   const [b3NormalizedArtifacts, setB3NormalizedArtifacts] = useState<B3NormalizedArtifact[]>([]);
+  const [selectedAlternativeId, setSelectedAlternativeId] = useState<string | null>(null);
   const [profileId, setProfileId] = useState(() => typeof window === "undefined" ? "perfil-local" : localStorage.getItem("hedge-lab.active-profile.v1") ?? "perfil-local");
   const [simulationHistory, setSimulationHistory] = useState<LocalSimulationVersion[]>(() => loadSimulationHistory(typeof window === "undefined" ? null : localStorage, typeof window === "undefined" ? "perfil-local" : localStorage.getItem("hedge-lab.active-profile.v1") ?? "perfil-local"));
   const [historyBaseHash, setHistoryBaseHash] = useState("");
@@ -277,6 +280,9 @@ export default function HedgeDashboard() {
   const ptaxUnavailable = ptax.data?.availabilityStatus === "unavailable";
   const ipcaObservation = ipca.data?.dataframe.find(row => row.localityId === "1") ?? ipca.data?.dataframe[0];
   const curve = useMemo(() => (ettj.data?.dataframe ?? []).map(row => ({ vertex: row.vertexBusinessDays, pre: row.ettjPrePctAa252 })), [ettj.data]);
+  const selectedAlternative = useMemo(() => canonicalDataframes.hedge_alternative_dataframe.find(alternative => alternative.alternative_id === selectedAlternativeId) ?? null, [canonicalDataframes.hedge_alternative_dataframe, selectedAlternativeId]);
+  const selectedAlternativeNeedsB3 = Boolean(selectedAlternative?.source_ids.includes("B3_PUBLIC_FILES"));
+  const selectedAlternativeIsRateHedge = selectedAlternative?.alternative_kind === "B3_DI1_FUTURE" || selectedAlternative?.alternative_kind === "B3_FRA_DI1" || selectedAlternative?.alternative_kind === "B3_DI1_OPTION";
   const sourceLineage = useMemo(() => {
     const entries = [ptax.data?.lineage, ipca.data?.lineage, ettj.data?.lineage, igpm.data?.lineage].filter(Boolean);
     return [...entries.map(item => ({
@@ -531,7 +537,7 @@ export default function HedgeDashboard() {
     toast.success("Exposição removida do DataFrame da sessão.");
   }
 
-  return <section className="mx-auto max-w-[1540px]"><div className={requestedPanel === "overview" ? "" : "hidden"}><ExecutiveFlowOverview exposureCount={exposures.length} alternativeCount={canonicalDataframes.hedge_alternative_dataframe.length} sourceStatuses={[{ label: "BCB / PTAX", loaded: Boolean(ptax.data), detail: ptax.data ? "Cotação oficial consultada" : ptaxUnavailable ? "Cotação não publicada para a data-base" : "Consulta automática em andamento" }, { label: "ANBIMA / ETTJ", loaded: Boolean(ettj.data), detail: ettj.data ? "Curva oficial recuperada" : "Consulta automática em andamento" }, { label: "IBGE / IPCA", loaded: Boolean(ipca.data), detail: ipca.data ? "Competência oficial recuperada" : "Consulta automática em andamento" }, { label: "FGV / IGP-M", loaded: Boolean(igpm.data), detail: igpm.data ? "Publicação oficial recuperada" : "Aguardando atualização automática" }, { label: "B3", loaded: manualB3Lineage.length > 0, detail: manualB3Lineage.length ? "Arquivos oficiais na sessão" : "Coleta oficial será atualizada automaticamente" }]} /></div>
+  return <section className="mx-auto max-w-[1540px]"><div className={requestedPanel === "overview" ? "" : "hidden"}><ConsultantCommandCenter exposureCount={exposures.length} alternativeCount={canonicalDataframes.hedge_alternative_dataframe.length} onCreateExposure={() => setLocation("/exposicoes")} onReviewAlternatives={() => setLocation("/exposicoes")} onOpenTechnicalBase={() => setLocation("/dados")} sourceStatuses={[{ label: "BCB / PTAX", loaded: Boolean(ptax.data), detail: ptax.data ? "Cotação oficial consultada" : ptaxUnavailable ? "Cotação não publicada para a data-base" : "Consulta automática em andamento" }, { label: "ANBIMA / ETTJ", loaded: Boolean(ettj.data), detail: ettj.data ? "Curva oficial recuperada" : "Consulta automática em andamento" }, { label: "IBGE / IPCA", loaded: Boolean(ipca.data), detail: ipca.data ? "Competência oficial recuperada" : "Consulta automática em andamento" }, { label: "FGV / IGP-M", loaded: Boolean(igpm.data), detail: igpm.data ? "Publicação oficial recuperada" : "Aguardando atualização automática" }, { label: "B3", loaded: manualB3Lineage.length > 0, detail: manualB3Lineage.length ? "Arquivos oficiais na sessão" : "Verificando arquivos oficiais" }]} /></div>
     <div className={`grid gap-5 xl:grid-cols-[1.5fr_.78fr] ${panelClass("overview")}`}>
       <div className="rounded-3xl bg-[#15353d] px-6 py-7 text-white shadow-[0_24px_55px_-32px_rgba(17,61,67,.8)] sm:px-8">
         <div className="flex flex-wrap items-start justify-between gap-4"><div><Badge className="border-0 bg-[#2a5a5b] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#a6f2df]">Laboratório financeiro institucional</Badge><h2 className="mt-4 max-w-2xl text-3xl font-semibold tracking-[-0.025em] sm:text-4xl">Evidência antes da decisão de hedge.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-[#abc2c8]">Consolide exposições, valide premissas e gere um rastro auditável antes da decisão. Nenhuma posição é persistida em base de dados.</p></div><div className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 font-mono text-[11px] text-[#c7dcdf]"><p className="text-[#72d2bf]">SESSÃO / AUDITÁVEL</p><p className="mt-1">{sourceLineage.length} fontes validadas</p></div></div>
@@ -593,55 +599,9 @@ export default function HedgeDashboard() {
 
     <CdiDebtCoverageSummaryCard dataframes={canonicalDataframes} /></div>
 
-    <div id="hedge-section-exposures-guided" className={`scroll-mt-28 ${requestedPanel === "exposures" ? "" : "hidden"}`}><HedgeDiagnosisCard onCanonicalDataframes={receiveCanonicalDiagnosis} onRegistered={receiveGuidedExposure} /><ExposureMaturityBucketsCard exposures={exposures} /><CdiDebtCoverageSummaryCard dataframes={canonicalDataframes} /></div>
+    <div id="hedge-section-exposures-guided" className={`scroll-mt-28 ${requestedPanel === "exposures" ? "" : "hidden"}`}><div className="mb-5 rounded-2xl border border-[#cde4dd] bg-[#f2fbf7] px-5 py-4"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#277161]">Jornada de análise</p><p className="mt-1 text-sm font-semibold text-[#17363e]">1. Declare o risco econômico · 2. Veja as alternativas compatíveis · 3. Escolha uma para estudar</p><p className="mt-1 text-xs leading-5 text-[#55736d]">A escolha de contrato, série, preço e cenário acontece depois. Nenhuma alternativa é recomendada ou dimensionada automaticamente.</p></div><HedgeDiagnosisCard onCanonicalDataframes={receiveCanonicalDiagnosis} onRegistered={receiveGuidedExposure} /><EligibleAlternativesComparisonCard dataframes={canonicalDataframes} lineage={sourceLineage} selectedAlternativeId={selectedAlternativeId} onSelectAlternative={setSelectedAlternativeId} />{selectedAlternative && <Card className="mt-7 overflow-hidden rounded-2xl border-[#c9e2dc] bg-white shadow-none"><CardHeader className="border-b border-[#e4efeb] pb-4"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#2f7869]">Etapa 3 · evidência e próximos passos</p><CardTitle className="mt-1 text-base text-[#17363e]">{selectedAlternative.label}</CardTitle><p className="mt-2 text-xs leading-5 text-[#55736d]">{selectedAlternativeNeedsB3 ? "A evidência B3 é exibida somente para esta alternativa. Vértices, séries e arquivos observados não são previsão nem recomendação." : "Esta alternativa depende de documentação bilateral ou de parâmetros declarados; não há curva B3 aplicável nesta etapa."}</p></CardHeader><CardContent className="p-5">{selectedAlternativeNeedsB3 ? selectedAlternativeIsRateHedge ? <><B3DiFutureCurveCard onCurve={setDiCurveReference} visualLoading={di1VisualLoading} /><B3DiCurveEvidenceChart curve={diCurveReference} /></> : <div className="rounded-xl border border-[#dceae6] bg-[#f8fcfa] p-4"><p className="text-sm font-semibold text-[#23474a]">Arquivos B3 disponíveis para vinculação</p><p className="mt-1 text-xs leading-5 text-[#5a7773]">{manualB3Lineage.length ? `${manualB3Lineage.length} evidência(s) oficial(is) já foram verificadas nesta sessão. Escolha uma série e vencimento compatíveis antes de dimensionar.` : "Os arquivos oficiais ainda estão em atualização. Você pode continuar a análise econômica sem usar valores substitutos."}</p>{b3NormalizedArtifacts.length > 0 ? <div className="mt-4"><B3ObservationSelector artifacts={b3NormalizedArtifacts} dataframes={canonicalDataframes} onSelected={receiveB3ObservationSelection} /></div> : <Button variant="outline" onClick={() => setLocation("/dados")} className="mt-4 border-[#bcd9d1] bg-white text-[#1c6157] hover:bg-[#edf9f5]">Ver evidências na base técnica</Button>}</div> : <div className="rounded-xl border border-[#ead6b5] bg-[#fff9ef] p-4 text-sm text-[#785628]">Esta alternativa exige os documentos, termos ou parâmetros listados acima antes de qualquer cálculo. O HEDGE LAB não monta uma taxa, preço ou contrato substituto.</div>}</CardContent></Card>}<ExposureMaturityBucketsCard exposures={exposures} /><CdiDebtCoverageSummaryCard dataframes={canonicalDataframes} /></div>
 
-    <div id="hedge-section-scenarios" className={`scroll-mt-28 ${panelClass("scenarios")}`}>
-
-    <EligibleAlternativesComparisonCard dataframes={canonicalDataframes} lineage={sourceLineage} />
-
-    <LinearFuturesScenarioCard onSnapshot={recordSessionSnapshot} />
-
-    <Di1VariationMarginCard onSnapshot={recordSessionSnapshot} curveReference={diCurveReference} />
-
-    <B3FxFutureDailySettlementCard onSnapshot={recordSessionSnapshot} />
-
-    <B3DollarOptionIntrinsicSettlementCard onSnapshot={recordSessionSnapshot} />
-
-    <B3CornOptionIntrinsicSettlementCard onSnapshot={recordSessionSnapshot} />
-
-    <B3CattleOptionIntrinsicSettlementCard onSnapshot={recordSessionSnapshot} />
-
-    <B3SoyOptionIntrinsicSettlementCard onSnapshot={recordSessionSnapshot} />
-
-    <B3SjcOptionIntrinsicSettlementCard onSnapshot={recordSessionSnapshot} />
-
-    <Di1OptionContractReferenceCard dataframes={canonicalDataframes} instrumentMasterRows={instrumentMasterRows} onSnapshot={recordSessionSnapshot} />
-
-    <FraDi1StructureReferenceCard dataframes={canonicalDataframes} onSnapshot={recordSessionSnapshot} />
-
-    <ScenarioStrategyComparisonCard scenarios={scenarioRows} calculations={calculationRows} />
-
-    <CurrentScenarioComparisonCard scenarios={scenarioRows} calculations={calculationRows} lineage={sourceLineage} />
-
-    <FxFutureSizer exposures={exposures} onSizing={receiveFxFutureSizing} />
-
-    <FxOptionSizer dataframes={canonicalDataframes} instrumentMasterRows={instrumentMasterRows} onSizing={receiveFxOptionSizing} />
-
-    <CommodityFutureSizer dataframes={canonicalDataframes} instrumentMasterRows={instrumentMasterRows} onSizing={receiveCommodityFutureSizing} />
-
-    <CommodityOptionSizer dataframes={canonicalDataframes} instrumentMasterRows={instrumentMasterRows} onSizing={receiveCommodityOptionSizing} />
-
-      <FxScenarioLab exposures={exposures} ptaxSale={ptaxQuote?.cotacaoVenda} onSessionSnapshot={receiveFxScenarioSnapshot} />
-
-    <NdfSettlementCard ptaxSale={ptaxQuote?.cotacaoVenda} ptaxLineage={ptax.data?.lineage} ettjLineage={ettj.data?.lineage} onSessionSnapshot={receiveNdfSnapshot} />
-
-    <OtcContractMasterCard onMasterCreated={receiveOtcMaster} onHedgeCreated={receiveOtcHedge} exposures={exposures.map(exposure => ({ exposure_id: exposure.exposure_id, description: exposure.description }))} />
-
-    <FxSwapScenarioCard instrumentMasterRows={instrumentMasterRows} hedgeRows={hedgeRows} onSnapshot={recordSessionSnapshot} />
-
-    <HedgeEffectivenessCard valuationAsOf={ptax.data?.lineage.sourceAsOf ?? ettj.data?.lineage.sourceAsOf} sourceIds={sourceLineage.map(item => item.source_id)} onSessionSnapshot={receiveEffectivenessSnapshot} />
-
-    <ResidualRiskCard valuationAsOf={ptax.data?.lineage.sourceAsOf ?? ettj.data?.lineage.sourceAsOf} sourceIds={sourceLineage.map(item => item.source_id)} onSessionSnapshot={receiveResidualRiskSnapshot} /></div>
+    <div id="hedge-section-scenarios" className={`scroll-mt-28 ${panelClass("scenarios")}`}><Card className="rounded-2xl border-[#cce4dd] bg-[#f2fbf7] shadow-none"><CardContent className="p-5"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#287465]">Etapa 4 · simular e comparar</p><h2 className="mt-1 text-lg font-semibold text-[#17363e]">Transforme uma alternativa em uma análise de cobertura</h2><p className="mt-2 max-w-3xl text-xs leading-5 text-[#55736d]">Primeiro escolha uma alternativa em Empresas e exposições. Depois defina se o exercício usa hipótese didática ou observação oficial. Nenhum preço de cenário é tratado como dado de mercado sem a respectiva evidência.</p></CardContent></Card>{!selectedAlternative ? <Card className="mt-5 rounded-2xl border-[#dce8e5] bg-white shadow-none"><CardContent className="p-7 text-center"><p className="text-sm font-semibold text-[#284a4c]">Nenhuma alternativa está em análise</p><p className="mx-auto mt-2 max-w-lg text-xs leading-5 text-[#637d79]">Declare uma exposição e selecione uma alternativa de hedge para definir o caminho de simulação apropriado.</p><Button onClick={() => setLocation("/exposicoes")} className="mt-4 bg-[#1b6258] text-white hover:bg-[#164e46]">Voltar para exposições</Button></CardContent></Card> : <><Card className="mt-5 rounded-2xl border-[#d5e8e2] bg-white shadow-none"><CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#367a6c]">Alternativa em análise</p><p className="mt-1 text-base font-semibold text-[#17363e]">{selectedAlternative.label}</p><p className="mt-1 text-xs leading-5 text-[#5a7773]">{selectedAlternativeNeedsB3 ? "Use dados B3 somente depois de confirmar série, vencimento e data-base na evidência contextual." : "Use os parâmetros e documentos contratuais declarados; não há dado B3 implícito neste caminho."}</p></div><Button variant="outline" onClick={() => setLocation("/exposicoes")} className="border-[#bcd9d1] bg-white text-[#1c6157] hover:bg-[#edf9f5]">Trocar alternativa</Button></CardContent></Card><LinearFuturesScenarioCard onSnapshot={recordSessionSnapshot} /></>}<details className="mt-7 rounded-2xl border border-[#dce8e5] bg-white"><summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-[#284a4c]"><span className="mr-2 text-[#2f806d]">+</span> Ferramentas avançadas de dimensionamento, ajustes e contratos</summary><div className="border-t border-[#e8f0ed] px-5 pb-5"><p className="mt-4 text-xs leading-5 text-[#667f7b]">Use estes módulos quando a alternativa, a evidência e os termos de contrato já tiverem sido definidos. Eles permanecem separados para não confundir a etapa inicial de decisão.</p><Di1VariationMarginCard onSnapshot={recordSessionSnapshot} curveReference={diCurveReference} /><B3FxFutureDailySettlementCard onSnapshot={recordSessionSnapshot} /><B3DollarOptionIntrinsicSettlementCard onSnapshot={recordSessionSnapshot} /><B3CornOptionIntrinsicSettlementCard onSnapshot={recordSessionSnapshot} /><B3CattleOptionIntrinsicSettlementCard onSnapshot={recordSessionSnapshot} /><B3SoyOptionIntrinsicSettlementCard onSnapshot={recordSessionSnapshot} /><B3SjcOptionIntrinsicSettlementCard onSnapshot={recordSessionSnapshot} /><Di1OptionContractReferenceCard dataframes={canonicalDataframes} instrumentMasterRows={instrumentMasterRows} onSnapshot={recordSessionSnapshot} /><FraDi1StructureReferenceCard dataframes={canonicalDataframes} onSnapshot={recordSessionSnapshot} /><ScenarioStrategyComparisonCard scenarios={scenarioRows} calculations={calculationRows} /><CurrentScenarioComparisonCard scenarios={scenarioRows} calculations={calculationRows} lineage={sourceLineage} /><FxFutureSizer exposures={exposures} onSizing={receiveFxFutureSizing} /><FxOptionSizer dataframes={canonicalDataframes} instrumentMasterRows={instrumentMasterRows} onSizing={receiveFxOptionSizing} /><CommodityFutureSizer dataframes={canonicalDataframes} instrumentMasterRows={instrumentMasterRows} onSizing={receiveCommodityFutureSizing} /><CommodityOptionSizer dataframes={canonicalDataframes} instrumentMasterRows={instrumentMasterRows} onSizing={receiveCommodityOptionSizing} /><FxScenarioLab exposures={exposures} ptaxSale={ptaxQuote?.cotacaoVenda} onSessionSnapshot={receiveFxScenarioSnapshot} /><NdfSettlementCard ptaxSale={ptaxQuote?.cotacaoVenda} ptaxLineage={ptax.data?.lineage} ettjLineage={ettj.data?.lineage} onSessionSnapshot={receiveNdfSnapshot} /><OtcContractMasterCard onMasterCreated={receiveOtcMaster} onHedgeCreated={receiveOtcHedge} exposures={exposures.map(exposure => ({ exposure_id: exposure.exposure_id, description: exposure.description }))} /><FxSwapScenarioCard instrumentMasterRows={instrumentMasterRows} hedgeRows={hedgeRows} onSnapshot={recordSessionSnapshot} /><HedgeEffectivenessCard valuationAsOf={ptax.data?.lineage.sourceAsOf ?? ettj.data?.lineage.sourceAsOf} sourceIds={sourceLineage.map(item => item.source_id)} onSessionSnapshot={receiveEffectivenessSnapshot} /><ResidualRiskCard valuationAsOf={ptax.data?.lineage.sourceAsOf ?? ettj.data?.lineage.sourceAsOf} sourceIds={sourceLineage.map(item => item.source_id)} onSessionSnapshot={receiveResidualRiskSnapshot} /></div></details></div>
 
     <div className={panelClass("history")}><ScenarioBundleComparator /></div>
 

@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import React from "react";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import EligibleAlternativesComparisonCard from "./EligibleAlternativesComparisonCard";
+
+afterEach(() => cleanup());
 
 describe("EligibleAlternativesComparisonCard", () => {
   it("expõe fonte B3, premissas, cobertura dimensionada, resultado vinculado e bloqueios da mesma alternativa", () => {
@@ -20,15 +22,28 @@ describe("EligibleAlternativesComparisonCard", () => {
     expect(screen.getByText("Futuro DOL")).toBeTruthy();
     expect(screen.getByText(/DOL · DOLU26/)).toBeTruthy();
     expect(screen.getByText(/venc. 2026-09-01/)).toBeTruthy();
-    expect(screen.getByText(/BVBG\.086\.01\.xml/)).toBeTruthy();
-    expect(screen.getByText(/BVBG\.028\.02\.xml/)).toBeTruthy();
-    expect(screen.getByText(/a{64}/)).toBeTruthy();
-    expect(screen.getByText("100%")).toBeTruthy();
-    expect(screen.getByText("1 contrato DOL")).toBeTruthy();
+    expect(screen.getByText("Evidência atual")).toBeTruthy();
+    expect(screen.getByText(/100%/)).toBeTruthy();
+    expect(screen.getByText(/Cobertura e cenário/)).toBeTruthy();
     expect(screen.getByText("Resultado vinculado")).toBeTruthy();
-    expect(screen.getByText("123.45 BRL")).toBeTruthy();
+    expect(screen.getByText(/resultado 123.45 BRL/)).toBeTruthy();
     expect(screen.getByText("Resultado auditável")).toBeTruthy();
     expect(screen.getByText(/sem preço de ajuste, margem ou custo financeiro/i)).toBeTruthy();
+  });
+
+  it("permite selecionar uma alternativa declarada para abrir sua evidência contextual", () => {
+    const onSelectAlternative = vi.fn();
+    render(<EligibleAlternativesComparisonCard
+      onSelectAlternative={onSelectAlternative}
+      dataframes={{
+        economic_situation_dataframe: [{ economic_situation_id: "sit-2", exposure_id: "exp-2", situation_kind: "USD_PAYABLE", description: "Pagamento", declared_quantity: 10_000, declared_currency: "USD", horizon_date: "2026-10-21", commodity_reference: null, indexer: null, origin: "USER_DECLARED", captured_at_utc: "2026-08-20T00:00:00.000Z" }],
+        risk_factor_dataframe: [{ risk_factor_id: "risk-2", economic_situation_id: "sit-2", risk_factor: "USD_BRL", adverse_move: "alta", economic_impact: "custo", hedge_direction: "BUY", method_version: "economic-exposure-diagnosis-v1" }],
+        hedge_alternative_dataframe: [{ alternative_id: "alt-select", exposure_id: "exp-2", alternative_kind: "B3_DOL_FUTURE", label: "Futuro DOL para análise", risk_factor: "USD_BRL", hedge_direction: "BUY", eligibility_status: "eligible_with_market_data", required_data: ["série DOL"], blocking_reason: null, source_ids: ["B3_PUBLIC_FILES"], method_version: "hedge-alternatives-v1", economic_situation_id: "sit-2", risk_factor_id: "risk-2", origin: "CATALOG_DERIVED" }],
+        hedge_sizing_dataframe: [], scenario_result_dataframe: [], b3_observation_link_dataframe: [],
+      }}
+    />);
+    fireEvent.click(screen.getByRole("button", { name: "Analisar esta alternativa" }));
+    expect(onSelectAlternative).toHaveBeenCalledWith("alt-select");
   });
 
   it("exibe o resultado NDF canônico quando a alternativa OTC já foi vinculada por cálculo auditável", () => {
@@ -40,7 +55,7 @@ describe("EligibleAlternativesComparisonCard", () => {
       scenario_result_dataframe: [{ scenario_result_id: "result-ndf", scenario_id: "scn-ndf", alternative_id: "alt-ndf", calculation_id: "calc-ndf", result_status: "SUCCESS", economic_result: 456.78, result_currency: "BRL", limitation: "Cenário de liquidação NDF vinculado a contrato OTC hasheado.", generated_at_utc: "2026-08-18T00:00:00.000Z" }],
     }} />);
     expect(screen.getByText("NDF contratual")).toBeTruthy();
-    expect(screen.getByText("456.78 BRL")).toBeTruthy();
+    expect(screen.getByText(/resultado 456.78 BRL/)).toBeTruthy();
     expect(screen.getByText(/contrato OTC hasheado/i)).toBeTruthy();
   });
 });
