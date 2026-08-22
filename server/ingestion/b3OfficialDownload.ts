@@ -21,6 +21,7 @@ export type B3OfficialDownload = {
   reportType: B3OfficialReportType;
   sourceAsOf: string;
   officialDownloadUrl: string;
+  attempts: number;
   outerArchive: { filename: string; bytes: number; sha256: string; storageKey: string | null; storageUrl: string | null };
   innerArchive: { filename: string; bytes: number; sha256: string };
   xmlFiles: B3OfficialXmlFile[];
@@ -28,6 +29,14 @@ export type B3OfficialDownload = {
 };
 
 type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
+
+function pause(milliseconds: number) {
+  return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
+function retryableHttpStatus(status: number) {
+  return status === 408 || status === 429 || status >= 500;
+}
 
 function toB3DateStamp(asOf: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf)) throw new Error("A data-base deve usar o formato AAAA-MM-DD.");
@@ -108,6 +117,8 @@ export async function collectB3OfficialReport(input: {
   persistRaw?: boolean;
   metadataOnly?: boolean;
   timeoutMs?: number;
+  maxAttempts?: number;
+  retryDelayMs?: number;
   fetcher?: FetchLike;
 }): Promise<B3OfficialDownload> {
   const spec = reportSpec[input.reportType];
@@ -116,19 +127,40 @@ export async function collectB3OfficialReport(input: {
   const officialUrl = new URL(B3_DOWNLOAD_URL);
   officialUrl.searchParams.set("filelist", `${archiveFilename},`);
   const fetcher = input.fetcher ?? fetch;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), input.timeoutMs ?? 60_000);
-  let response: Response;
-  let outerBuffer: Buffer;
-  try {
-    response = await fetcher(officialUrl, { signal: controller.signal });
-    if (!response.ok) throw new Error(`A B3 respondeu ${response.status} ao solicitar ${archiveFilename}.`);
-    outerBuffer = Buffer.from(await response.arrayBuffer());
-  } catch (error) {
-    if (controller.signal.aborted) throw new Error(`A B3 não respondeu em ${input.timeoutMs ?? 60_000} ms ao solicitar ${archiveFilename}.`);
-    throw error;
-  } finally {
-    clearTimeout(timeout);
+  const maxAttempts = Math.max(1, Math.min(input.maxAttempts ?? 3, 3));
+  const retryDelayMs = Math.max(0, input.retryDelayMs ?? 750);
+  const timeoutMs = input.timeoutMs ?? 60_000;
+  let attempts = 0;
+  let outerBuffer: Buffer | null = null;
+  let finalError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    attempts = attempt;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetcher(officialUrl, { signal: controller.signal });
+      if (!response.ok) {
+        const error = new Error(`A B3 respondeu ${response.status} ao solicitar ${archiveFilename}.`);
+        finalError = error;
+        if (!retryableHttpStatus(response.status)) break;
+      } else {
+        outerBuffer = Buffer.from(await response.arrayBuffer());
+        clearTimeout(timeout);
+        break;
+      }
+    } catch (error) {
+      finalError = controller.signal.aborted
+        ? new Error(`A B3 não respondeu em ${timeoutMs} ms ao solicitar ${archiveFilename}.`)
+        : error instanceof Error ? error : new Error("A conexão com a B3 falhou sem mensagem legível.");
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (attempt < maxAttempts) await pause(retryDelayMs * attempt);
+  }
+  if (!outerBuffer) {
+    const detail = finalError?.message ?? "A B3 não retornou conteúdo para o arquivo solicitado.";
+    throw new Error(`${detail} Tentativas esgotadas (${attempts}/${maxAttempts}); nenhum arquivo ou DataFrame foi publicado.`);
   }
   if (outerBuffer.length === 0) throw new Error(`A B3 retornou pacote vazio para ${archiveFilename}.`);
   if (outerBuffer.subarray(0, 2).toString("utf8") !== "PK") throw new Error(describeUnexpectedDownloadContent(outerBuffer, archiveFilename));
@@ -152,6 +184,7 @@ export async function collectB3OfficialReport(input: {
     reportType: input.reportType,
     sourceAsOf: input.asOf,
     officialDownloadUrl: officialUrl.toString(),
+    attempts,
     outerArchive: { filename: archiveFilename, bytes: outerBuffer.length, sha256: sha256(outerBuffer), storageKey, storageUrl },
     innerArchive: { filename: archiveFilename, bytes: innerBuffer.length, sha256: sha256(innerBuffer) },
     xmlFiles,
@@ -165,6 +198,8 @@ export async function collectB3OfficialPriceReport(input: {
   persistRaw?: boolean;
   metadataOnly?: boolean;
   timeoutMs?: number;
+  maxAttempts?: number;
+  retryDelayMs?: number;
   fetcher?: FetchLike;
 }) {
   return collectB3OfficialReport(input);

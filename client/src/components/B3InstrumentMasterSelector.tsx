@@ -6,7 +6,7 @@ import { CheckCircle2, Loader2, ShieldAlert } from "lucide-react";
 import React, { useMemo, useState } from "react";
 
 type OfficialSpecification = {
-  instrumentKey: "DOL" | "WDO" | "DOL_OPTION" | "DI1" | "DI1_OPTION" | "BGI" | "CCM" | "SOY" | "SJC" | "BGI_OPTION" | "CCM_OPTION" | "SOY_OPTION" | "SJC_OPTION";
+  instrumentKey: "DOL" | "WDO" | "DOL_OPTION" | "DI1" | "DI1_OPTION" | "BGI" | "ICF" | "CNL" | "ETH" | "CCM" | "GLD" | "SOY" | "SJC" | "BGI_OPTION" | "CCM_OPTION" | "SOY_OPTION" | "SJC_OPTION";
   kind: "B3_FX_FUTURE" | "B3_FX_OPTION" | "B3_DI_FUTURE" | "B3_DI_OPTION" | "B3_COMMODITY_FUTURE" | "B3_COMMODITY_OPTION";
   description: string;
   evidence: { sourceUrl: string | null; sourceFile: string; sourceHashSha256: string | null; capturedAtUtc: string };
@@ -14,7 +14,7 @@ type OfficialSpecification = {
 
 export type B3ProductSpecificationSessionRow = {
   instrument_id: string;
-  instrument_key: "DOL" | "WDO" | "DOL_OPTION" | "DI1" | "DI1_OPTION" | "BGI" | "CCM" | "SOY" | "SJC" | "BGI_OPTION" | "CCM_OPTION" | "SOY_OPTION" | "SJC_OPTION";
+  instrument_key: "DOL" | "WDO" | "DOL_OPTION" | "DI1" | "DI1_OPTION" | "BGI" | "ICF" | "CNL" | "ETH" | "CCM" | "GLD" | "SOY" | "SJC" | "BGI_OPTION" | "CCM_OPTION" | "SOY_OPTION" | "SJC_OPTION";
   product_kind: "B3_FX_FUTURE" | "B3_FX_OPTION" | "B3_DI_FUTURE" | "B3_DI_OPTION" | "B3_COMMODITY_FUTURE" | "B3_COMMODITY_OPTION";
   description: string;
   terms: Record<string, unknown>;

@@ -6,7 +6,7 @@ export type EconomicExposureKind =
   | "COMMODITY_SALE";
 
 export type HedgeRiskFactor = "USD_BRL" | "CDI_RATE" | "B3_COMMODITY_PRICE";
-export type CommodityReference = "BGI" | "CCM" | "SOY" | "SJC";
+export type CommodityReference = "BGI" | "ICF" | "CNL" | "ETH" | "CCM" | "GLD" | "SOY" | "SJC";
 export type HedgeAlternativeKind =
   | "B3_DOL_FUTURE"
   | "B3_WDO_FUTURE"
@@ -120,17 +120,20 @@ export function diagnoseHedgeAlternatives(exposure: EconomicExposure): HedgeAlte
   const isPurchase = exposure.kind === "COMMODITY_PURCHASE";
   const hedgeDirection = isPurchase ? "BUY" : "SELL";
   const commodity = exposure.commodityReference!;
+  const commodityLabel: Record<CommodityReference, string> = {
+    BGI: "Boi Gordo", ICF: "Café Arábica 4/5", CNL: "Café Conilon Robusta", ETH: "Etanol Hidratado", CCM: "Milho", GLD: "Ouro", SOY: "Soja FOB Santos", SJC: "Soja referenciada no Mini de Soja CME",
+  };
   return {
     exposure,
     diagnosis: {
       riskFactor: "B3_COMMODITY_PRICE",
-      adverseMove: isPurchase ? `alta de preço do contrato ${commodity}` : `queda de preço do contrato ${commodity}`,
+      adverseMove: isPurchase ? `alta de preço da referência ${commodityLabel[commodity]} (${commodity})` : `queda de preço da referência ${commodityLabel[commodity]} (${commodity})`,
       economicImpact: isPurchase ? "aumento do custo de aquisição" : "redução da receita de venda",
       hedgeDirection,
     },
     alternatives: [
-      listedAlternative("B3_COMMODITY_FUTURE", `Futuro de commodity ${commodity}`, "B3_COMMODITY_PRICE", hedgeDirection, [`série ${commodity}`, "vencimento", "preço de ajuste B3", "unidade de exposição", "quantidade"]),
-      listedAlternative("B3_COMMODITY_OPTION", `Opção sobre futuro de commodity ${commodity}`, "B3_COMMODITY_PRICE", hedgeDirection, [`série de opção ${commodity}`, "futuro subjacente", "strike", "prêmio B3", "tipo call/put", "vencimento"]),
+      listedAlternative("B3_COMMODITY_FUTURE", `Futuro de ${commodityLabel[commodity]} (${commodity})`, "B3_COMMODITY_PRICE", hedgeDirection, [`série ${commodity}`, "vencimento", "preço de ajuste B3", "unidade de exposição", "quantidade"]),
+      listedAlternative("B3_COMMODITY_OPTION", `Opção sobre futuro de ${commodityLabel[commodity]} (${commodity})`, "B3_COMMODITY_PRICE", hedgeDirection, [`série de opção ${commodity}`, "futuro subjacente", "strike", "prêmio B3 ou contrato comprovado", "tipo call/put", "vencimento"]),
     ],
   };
 }

@@ -16,6 +16,7 @@ const PARSER_VERSION = "b3-bvbg-028-02-v1";
 const supportedFamilies = new Set<string>(SUPPORTED_B3_FAMILIES);
 
 export type B3InstrumentParseContext = Omit<DataLineage, "parserVersion" | "validationStatus">;
+export type B3InstrumentParseOptions = { includeRow?: (row: B3InstrumentRow) => boolean };
 
 type MutableInstrument = Omit<B3InstrumentRow, "family" | "instrumentId" | "rawSchema"> & {
   family: string | null;
@@ -224,6 +225,7 @@ function buildCoverage(rows: B3InstrumentRow[]): InstrumentDataset["coverage"] {
 export async function parseB3InstrumentXmlStream(
   readable: Readable,
   context: B3InstrumentParseContext,
+  options: B3InstrumentParseOptions = {},
 ): Promise<InstrumentDataset> {
   const rows: B3InstrumentRow[] = [];
   let currentInstrument: MutableInstrument | null = null;
@@ -253,7 +255,7 @@ export async function parseB3InstrumentXmlStream(
 
       if (tagName === "Instrm" && currentInstrument) {
         const normalized = normalizeInstrument(currentInstrument);
-        if (normalized) rows.push(normalized);
+        if (normalized && (!options.includeRow || options.includeRow(normalized))) rows.push(normalized);
         currentInstrument = null;
         textByPath.clear();
       }

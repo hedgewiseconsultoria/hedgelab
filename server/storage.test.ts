@@ -34,4 +34,12 @@ describe("armazenamento de sessão fora do Manus", () => {
     expect(stored.key).toMatch(/^session\/b3\/raw\/2026-08-13\/BVBG\.028\.02\/IN260813_/);
     expect(getSessionStoredObject(stored.key)?.data).toEqual(Buffer.from("arquivo-b3"));
   });
+
+  it("rejeita artefato acima do limite seguro antes de retê-lo na memória", async () => {
+    ENV.forgeApiUrl = "";
+    ENV.forgeApiKey = "";
+
+    await expect(storagePut("b3/raw/arquivo-grande.zip", Buffer.alloc(6 * 1024 * 1024 + 1), "application/zip"))
+      .rejects.toThrow("limite seguro");
+  });
 });

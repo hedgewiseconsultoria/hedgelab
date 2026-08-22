@@ -15,12 +15,16 @@ describe("Instrument Master", () => {
     expect(B3_DI1_FUTURE_SPEC.quotation).toBe("EFFECTIVE_ANNUAL_RATE_COMPOUNDED_DAILY_AA_252");
     expect(B3_DI1_OPTION_SPEC).toMatchObject({ instrumentKey: "DI1_OPTION", kind: "B3_DI_OPTION", underlyingFuture: "DI1", optionToUnderlyingContractRatio: 1, exerciseStyle: "EUROPEAN", standardLotContracts: 5 });
     expect(B3_DI1_OPTION_SPEC.evidence.sourceHashSha256).toBe("81b35c6cd34d281eec1700209fe15248e5258d46493771d770b6ab684fb9933d");
-    expect(OFFICIAL_INSTRUMENT_MASTER).toHaveLength(13);
+    expect(OFFICIAL_INSTRUMENT_MASTER).toHaveLength(17);
   });
 
-  it("materializa futuros B3 de boi, milho e soja com unidade e hash de ficha oficial", () => {
+  it("materializa futuros B3 de boi, cafés, etanol, milho, ouro e soja com unidade e hash de ficha oficial", () => {
     expect(B3_COMMODITY_FUTURE_SPECS.BGI).toMatchObject({ contractSize: 330, contractUnit: "ARROBA", quotation: "BRL_PER_ARROBA", settlement: "FINANCIAL" });
+    expect(B3_COMMODITY_FUTURE_SPECS.ICF).toMatchObject({ contractSize: 100, contractUnit: "SACA_60KG", quotation: "USD_PER_SACA_60KG", settlement: "PHYSICAL" });
+    expect(B3_COMMODITY_FUTURE_SPECS.CNL).toMatchObject({ contractSize: 100, contractUnit: "SACA_60KG", quotation: "BRL_PER_SACA_60KG", settlement: "PHYSICAL" });
+    expect(B3_COMMODITY_FUTURE_SPECS.ETH).toMatchObject({ contractSize: 30, contractUnit: "CUBIC_METER", quotation: "BRL_PER_CUBIC_METER", settlement: "FINANCIAL" });
     expect(B3_COMMODITY_FUTURE_SPECS.CCM).toMatchObject({ contractSize: 450, contractUnit: "SACA_60KG", quotation: "BRL_PER_SACA_60KG" });
+    expect(B3_COMMODITY_FUTURE_SPECS.GLD).toMatchObject({ contractSize: 1, contractUnit: "TROY_OUNCE", quotation: "USD_PER_TROY_OUNCE", settlement: "FINANCIAL" });
     expect(B3_COMMODITY_FUTURE_SPECS.SOY).toMatchObject({ contractSize: 34, contractUnit: "METRIC_TON", quotation: "USD_PER_METRIC_TON" });
     expect(B3_COMMODITY_FUTURE_SPECS.SJC).toMatchObject({ contractSize: 450, contractUnit: "SACA_60KG", quotation: "USD_PER_SACA_60KG" });
     for (const specification of Object.values(B3_COMMODITY_FUTURE_SPECS)) expect(specification.evidence.sourceHashSha256).toMatch(/^[a-f0-9]{64}$/);

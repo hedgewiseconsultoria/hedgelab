@@ -46,6 +46,13 @@ const B3_NORMALIZED_STORAGE_PREFIX = "b3/normalized/";
 const B3_DI1_DOWNLOAD_TIMEOUT_MS = 45_000;
 const B3_BULLETIN_DOWNLOAD_TIMEOUT_MS = 150_000;
 
+function b3AvailabilityReason(error: unknown) {
+  const message = error instanceof Error ? error.message : "Falha sem mensagem legível.";
+  if (/não respondeu|tentativas esgotadas|respondeu 5\d\d|respondeu 429/i.test(message)) return "A B3 não respondeu dentro da janela de atualização. Nenhum dado substituto foi utilizado; tente novamente mais tarde.";
+  if (/HTML|ZIP válido|pacote vazio|não contém XML/i.test(message)) return "A B3 não devolveu um arquivo oficial utilizável para esta data-base. Nenhum DataFrame foi publicado.";
+  return "A coleta oficial não pôde ser validada nesta tentativa. Nenhum dado ou cálculo dependente desta fonte foi liberado.";
+}
+
 async function openB3XmlWithIncrementalHash(xml: B3OfficialXmlFile) {
   const raw = xml.body ? Readable.from([xml.body]) : xml.openStream ? await xml.openStream() : null;
   if (!raw) throw new Error(`O XML ${xml.filename} não possui stream para normalização.`);
@@ -188,15 +195,15 @@ async function normalizeCollectedB3InstrumentXml(input: {
 async function collectAndBuildB3DiFutureCurve(input: { asOf: string }) {
   const collectedAtUtc = new Date().toISOString();
   const [priceDownload, instrumentDownload] = await Promise.all([
-    collectB3OfficialReport({ reportType: "BVBG.086.01", asOf: input.asOf, persistRaw: true, timeoutMs: B3_DI1_DOWNLOAD_TIMEOUT_MS }),
-    collectB3OfficialReport({ reportType: "BVBG.028.02", asOf: input.asOf, persistRaw: true, timeoutMs: B3_DI1_DOWNLOAD_TIMEOUT_MS }),
+    collectB3OfficialReport({ reportType: "BVBG.086.01", asOf: input.asOf, persistRaw: false, timeoutMs: B3_DI1_DOWNLOAD_TIMEOUT_MS, maxAttempts: 1 }),
+    collectB3OfficialReport({ reportType: "BVBG.028.02", asOf: input.asOf, persistRaw: false, timeoutMs: B3_DI1_DOWNLOAD_TIMEOUT_MS, maxAttempts: 1 }),
   ]);
   const priceDatasets = [];
   for (const xml of priceDownload.xmlFiles) {
     const source = await openB3XmlWithIncrementalHash(xml);
     const dataset = await parseB3PriceReportXmlStream(source.stream, {
       sourceId: "B3_PUBLIC_FILES", sourceUrl: priceDownload.officialDownloadUrl, sourceFile: xml.filename, extractedAtUtc: collectedAtUtc,
-      sourceAsOf: input.asOf, sourceHashSha256: xml.sha256, expectedReportType: "BVBG.086.01",
+      sourceAsOf: input.asOf, sourceHashSha256: xml.sha256, expectedReportType: "BVBG.086.01", includeRow: row => row.symbol.startsWith("DI1"),
     });
     dataset.lineage.sourceHashSha256 = source.finalizeHash();
     priceDatasets.push(dataset);
@@ -207,7 +214,7 @@ async function collectAndBuildB3DiFutureCurve(input: { asOf: string }) {
     const dataset = await parseB3InstrumentXmlStream(source.stream, {
       sourceId: "B3_PUBLIC_FILES", sourceUrl: instrumentDownload.officialDownloadUrl, sourceFile: xml.filename, extractedAtUtc: collectedAtUtc,
       sourceAsOf: input.asOf, sourceHashSha256: xml.sha256,
-    });
+    }, { includeRow: row => row.family === "DI1" });
     dataset.lineage.sourceHashSha256 = source.finalizeHash();
     instrumentDatasets.push(dataset);
   }
@@ -327,36 +334,60 @@ export const appRouter = router({
         reportTypes: z.array(z.enum(["BVBG.086.01", "BVBG.187.01", "BVBG.028.02"])).min(1).max(3),
         normalize: z.boolean().default(false),
         persistRaw: z.boolean().default(false),
+        collectionMode: z.enum(["automatic", "manual"]).default("manual"),
       }))
       .mutation(async ({ input }) => {
         const collectedAtUtc = new Date().toISOString();
+        const downloadPolicy = input.collectionMode === "automatic"
+          ? { timeoutMs: 25_000, maxAttempts: 1, retryDelayMs: 0 }
+          : { timeoutMs: B3_BULLETIN_DOWNLOAD_TIMEOUT_MS, maxAttempts: 2, retryDelayMs: 750 };
         const reports = [];
         for (const reportType of input.reportTypes) {
-          const download = reportType === "BVBG.028.02"
-            ? await collectB3OfficialReport({ reportType, asOf: input.asOf, persistRaw: input.persistRaw, timeoutMs: B3_BULLETIN_DOWNLOAD_TIMEOUT_MS })
-            : await collectB3OfficialPriceReport({ reportType, asOf: input.asOf, persistRaw: input.persistRaw, timeoutMs: B3_BULLETIN_DOWNLOAD_TIMEOUT_MS });
-          const normalizations = [];
-          if (input.normalize) {
-            for (const xml of download.xmlFiles) {
-              normalizations.push(reportType === "BVBG.028.02"
-                ? await normalizeCollectedB3InstrumentXml({ asOf: input.asOf, officialDownloadUrl: download.officialDownloadUrl, collectedAtUtc, xml })
-                : await normalizeCollectedB3PriceXml({ reportType, asOf: input.asOf, officialDownloadUrl: download.officialDownloadUrl, collectedAtUtc, xml }));
+          try {
+            const download = reportType === "BVBG.028.02"
+              ? await collectB3OfficialReport({ reportType, asOf: input.asOf, persistRaw: input.persistRaw, ...downloadPolicy })
+              : await collectB3OfficialPriceReport({ reportType, asOf: input.asOf, persistRaw: input.persistRaw, ...downloadPolicy });
+            const normalizations = [];
+            if (input.normalize) {
+              for (const xml of download.xmlFiles) {
+                normalizations.push(reportType === "BVBG.028.02"
+                  ? await normalizeCollectedB3InstrumentXml({ asOf: input.asOf, officialDownloadUrl: download.officialDownloadUrl, collectedAtUtc, xml })
+                  : await normalizeCollectedB3PriceXml({ reportType, asOf: input.asOf, officialDownloadUrl: download.officialDownloadUrl, collectedAtUtc, xml }));
+              }
             }
+            reports.push({
+              availability: "available" as const,
+              availabilityReason: null,
+              reportType: download.reportType,
+              sourceAsOf: download.sourceAsOf,
+              officialDownloadUrl: download.officialDownloadUrl,
+              validationStatus: download.validationStatus,
+              attempts: download.attempts,
+              outerArchive: download.outerArchive,
+              innerArchive: download.innerArchive,
+              xmlFiles: download.xmlFiles.map(({ filename, bytes, sha256 }) => ({ filename, bytes, sha256 })),
+              normalizations,
+            });
+          } catch (error) {
+            reports.push({
+              availability: "unavailable" as const,
+              availabilityReason: b3AvailabilityReason(error),
+              reportType,
+              sourceAsOf: input.asOf,
+              officialDownloadUrl: null,
+              validationStatus: null,
+              attempts: downloadPolicy.maxAttempts,
+              outerArchive: null,
+              innerArchive: null,
+              xmlFiles: [],
+              normalizations: [],
+            });
           }
-          reports.push({
-            reportType: download.reportType,
-            sourceAsOf: download.sourceAsOf,
-            officialDownloadUrl: download.officialDownloadUrl,
-            validationStatus: download.validationStatus,
-            outerArchive: download.outerArchive,
-            innerArchive: download.innerArchive,
-            xmlFiles: download.xmlFiles.map(({ filename, bytes, sha256 }) => ({ filename, bytes, sha256 })),
-            normalizations,
-          });
         }
         return {
           collectedAtUtc,
           storageMode: "object_storage_without_database" as const,
+          availability: reports.every(report => report.availability === "available") ? "available" as const : reports.some(report => report.availability === "available") ? "partial" as const : "unavailable" as const,
           reports,
         };
       }),
@@ -368,7 +399,7 @@ export const appRouter = router({
         priceManifestStorageKey: z.string().min(1),
         instrumentManifestStorageKey: z.string().min(1),
         priceReportType: z.enum(["BVBG.086.01", "BVBG.187.01"]),
-        family: z.enum(["DI1", "DOL", "WDO", "DDI", "BGI", "CCM", "SOY", "ICF", "ETH", "CNL", "SJC"]),
+        family: z.enum(["DI1", "DOL", "WDO", "DDI", "BGI", "ICF", "CNL", "ETH", "CCM", "GLD", "SOY", "SJC"]),
         limit: z.number().int().min(1).max(200).default(100),
       }))
       .query(async ({ input }) => {
@@ -485,7 +516,7 @@ export const appRouter = router({
       .input(z.object({
         exposureId: z.string().min(1), kind: z.enum(["USD_PAYABLE", "USD_RECEIVABLE", "CDI_LINKED_DEBT", "COMMODITY_PURCHASE", "COMMODITY_SALE"]),
         description: z.string().min(1), notional: z.number().positive(), currency: z.enum(["USD", "BRL"]), maturityDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        commodityReference: z.enum(["BGI", "CCM", "SOY", "SJC"]).optional(), indexer: z.literal("CDI").optional(), interestSpreadPctAa: z.number().finite().optional(),
+        commodityReference: z.enum(["BGI", "ICF", "CNL", "ETH", "CCM", "GLD", "SOY", "SJC"]).optional(), indexer: z.literal("CDI").optional(), interestSpreadPctAa: z.number().finite().optional(),
       }))
       .query(({ input }) => {
         const result = diagnoseHedgeAlternatives(input);
@@ -501,9 +532,9 @@ export const appRouter = router({
       .query(({ input }) => sizeB3FxFutureHedge(input)),
     sizeCommodityFuture: publicProcedure
       .input(z.object({
-        contract: z.enum(["BGI", "CCM", "SOY", "SJC"]),
+        contract: z.enum(["BGI", "ICF", "CNL", "ETH", "CCM", "GLD", "SOY", "SJC"]),
         exposureQuantity: z.number().positive(),
-        exposureUnit: z.enum(["ARROBA", "SACA_60KG", "METRIC_TON"]),
+        exposureUnit: z.enum(["ARROBA", "SACA_60KG", "METRIC_TON", "CUBIC_METER", "TROY_OUNCE"]),
         roundingPolicy: z.enum(["FLOOR", "NEAREST", "CEILING"]),
       }))
       .query(({ input }) => sizeB3CommodityFutureHedge(input)),
@@ -511,7 +542,7 @@ export const appRouter = router({
       .input(z.object({
         contract: z.enum(["BGI", "CCM", "SOY", "SJC"]),
         exposureQuantity: z.number().positive(),
-        exposureUnit: z.enum(["ARROBA", "SACA_60KG", "METRIC_TON"]),
+        exposureUnit: z.enum(["ARROBA", "SACA_60KG", "METRIC_TON", "CUBIC_METER", "TROY_OUNCE"]),
         roundingPolicy: z.enum(["FLOOR", "NEAREST", "CEILING"]),
       }))
       .query(({ input }) => sizeB3CommodityOptionReference(input)),

@@ -47,9 +47,9 @@ describe("HedgeDiagnosisCard", () => {
     const maturity = screen.getByLabelText("Vencimento ou horizonte") as HTMLInputElement;
     const originalNotional = notional.value;
     const originalMaturity = maturity.value;
-    fireEvent.click(screen.getByRole("button", { name: "Compra de milho" }));
+    fireEvent.click(screen.getByRole("button", { name: "Compra de Milho" }));
     expect((screen.getByLabelText("Variável econômica") as HTMLSelectElement).value).toBe("COMMODITY_PURCHASE");
-    expect((screen.getByLabelText("Descrição do compromisso") as HTMLInputElement).value).toContain("milho");
+    expect((screen.getByLabelText("Descrição do compromisso") as HTMLInputElement).value).toMatch(/milho/i);
     expect((screen.getByLabelText("Referência econômica") as HTMLSelectElement).value).toBe("CCM");
     expect(notional.value).toBe(originalNotional);
     expect(maturity.value).toBe(originalMaturity);

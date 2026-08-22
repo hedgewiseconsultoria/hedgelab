@@ -1,7 +1,7 @@
 import { B3_COMMODITY_FUTURE_SPECS } from "./instrumentMaster";
 
 export type CommodityFutureContract = keyof typeof B3_COMMODITY_FUTURE_SPECS;
-export type CommodityExposureUnit = "ARROBA" | "SACA_60KG" | "METRIC_TON";
+export type CommodityExposureUnit = "ARROBA" | "SACA_60KG" | "METRIC_TON" | "CUBIC_METER" | "TROY_OUNCE";
 export type CommodityRoundingPolicy = "FLOOR" | "NEAREST" | "CEILING";
 
 export type CommodityFutureSizingInput = {

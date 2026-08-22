@@ -69,4 +69,35 @@ describe("coletor oficial B3", () => {
       })),
     })).rejects.toThrow("A B3 não respondeu em 5 ms");
   });
+
+  it("tenta novamente falhas transitórias e só publica o arquivo após receber ZIP oficial válido", async () => {
+    const body = nestedZip("PR260814.zip", "BVBG.086.01_BV000328.xml");
+    let calls = 0;
+    const output = await collectB3OfficialPriceReport({
+      reportType: "BVBG.086.01",
+      asOf: "2026-08-14",
+      maxAttempts: 3,
+      retryDelayMs: 0,
+      fetcher: async () => {
+        calls += 1;
+        if (calls < 3) throw new Error("falha transitória de rede");
+        return new Response(body, { status: 200 });
+      },
+    });
+    expect(calls).toBe(3);
+    expect(output.attempts).toBe(3);
+    expect(output.outerArchive.sha256).toHaveLength(64);
+  });
+
+  it("não repete uma resposta definitiva de arquivo indisponível", async () => {
+    let calls = 0;
+    await expect(collectB3OfficialPriceReport({
+      reportType: "BVBG.086.01",
+      asOf: "2026-08-14",
+      maxAttempts: 3,
+      retryDelayMs: 0,
+      fetcher: async () => { calls += 1; return new Response("ausente", { status: 404 }); },
+    })).rejects.toThrow("A B3 respondeu 404");
+    expect(calls).toBe(1);
+  });
 });

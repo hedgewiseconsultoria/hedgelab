@@ -25,6 +25,7 @@ function mockedDownload(reportType: "BVBG.086.01" | "BVBG.187.01") {
     sourceAsOf: "2026-08-13",
     officialDownloadUrl: "https://www.b3.com.br/pesquisapregao/download?filelist=PR260813.zip%2C",
     validationStatus: "downloaded",
+    attempts: 1,
     outerArchive: { filename: "PR260813.zip", bytes: 12494986, sha256: "outer-hash", storageKey: "b3/raw/2026-08-13/PR260813.zip", storageUrl: "/manus-storage/b3/raw/2026-08-13/PR260813.zip" },
     innerArchive: { filename: "PR260813.zip", bytes: 13730641, sha256: "inner-hash" },
     xmlFiles: [{ filename: `${reportType}_real.xml`, bytes: 150813745, sha256: "xml-hash", body: Buffer.from("não deve sair pela API") }],
@@ -44,9 +45,10 @@ describe("marketData.collectB3Reports", () => {
       reportTypes: ["BVBG.086.01", "BVBG.187.01"],
     });
 
-    expect(mocks.collectB3OfficialPriceReport).toHaveBeenNthCalledWith(1, { reportType: "BVBG.086.01", asOf: "2026-08-13", persistRaw: false, timeoutMs: 150_000 });
-    expect(mocks.collectB3OfficialPriceReport).toHaveBeenNthCalledWith(2, { reportType: "BVBG.187.01", asOf: "2026-08-13", persistRaw: false, timeoutMs: 150_000 });
+    expect(mocks.collectB3OfficialPriceReport).toHaveBeenNthCalledWith(1, { reportType: "BVBG.086.01", asOf: "2026-08-13", persistRaw: false, timeoutMs: 150_000, maxAttempts: 2, retryDelayMs: 750 });
+    expect(mocks.collectB3OfficialPriceReport).toHaveBeenNthCalledWith(2, { reportType: "BVBG.187.01", asOf: "2026-08-13", persistRaw: false, timeoutMs: 150_000, maxAttempts: 2, retryDelayMs: 750 });
     expect(result.storageMode).toBe("object_storage_without_database");
+    expect(result.availability).toBe("available");
     expect(result.reports).toHaveLength(2);
     expect(result.reports[0]?.xmlFiles[0]).toEqual({ filename: "BVBG.086.01_real.xml", bytes: 150813745, sha256: "xml-hash" });
     expect(result.reports[0]?.xmlFiles[0]).not.toHaveProperty("body");
@@ -56,8 +58,23 @@ describe("marketData.collectB3Reports", () => {
     const instrumentDownload = { ...mockedDownload("BVBG.086.01"), reportType: "BVBG.028.02" as const, xmlFiles: [{ filename: "BVBG.028.02_real.xml", bytes: 123, sha256: "instrument-hash", body: Buffer.from("instrumento") }] };
     mocks.collectB3OfficialReport.mockResolvedValueOnce(instrumentDownload);
     const result = await appRouter.createCaller(ctx).marketData.collectB3Reports({ asOf: "2026-08-13", reportTypes: ["BVBG.028.02"], normalize: false });
-    expect(mocks.collectB3OfficialReport).toHaveBeenCalledWith({ reportType: "BVBG.028.02", asOf: "2026-08-13", persistRaw: false, timeoutMs: 150_000 });
-    expect(result.reports[0]).toMatchObject({ reportType: "BVBG.028.02", xmlFiles: [{ filename: "BVBG.028.02_real.xml", sha256: "instrument-hash" }] });
+    expect(mocks.collectB3OfficialReport).toHaveBeenCalledWith({ reportType: "BVBG.028.02", asOf: "2026-08-13", persistRaw: false, timeoutMs: 150_000, maxAttempts: 2, retryDelayMs: 750 });
+    expect(result.reports[0]).toMatchObject({ availability: "available", reportType: "BVBG.028.02", xmlFiles: [{ filename: "BVBG.028.02_real.xml", sha256: "instrument-hash" }] });
+  });
+
+  it("devolve disponibilidade parcial quando um boletim oficial falha, sem publicar dados do boletim indisponível", async () => {
+    mocks.collectB3OfficialPriceReport.mockResolvedValueOnce(mockedDownload("BVBG.086.01")).mockRejectedValueOnce(new Error("A B3 não respondeu em 150000 ms"));
+    const result = await appRouter.createCaller(ctx).marketData.collectB3Reports({ asOf: "2026-08-13", reportTypes: ["BVBG.086.01", "BVBG.187.01"] });
+    expect(result.availability).toBe("partial");
+    expect(result.reports[0]).toMatchObject({ availability: "available", reportType: "BVBG.086.01" });
+    expect(result.reports[1]).toMatchObject({ availability: "unavailable", reportType: "BVBG.187.01", xmlFiles: [], normalizations: [] });
+    expect(result.reports[1]?.availabilityReason).toContain("Nenhum dado substituto");
+  });
+
+  it("aplica limite curto e tentativa única à atualização automática para proteger a disponibilidade do serviço", async () => {
+    mocks.collectB3OfficialPriceReport.mockResolvedValueOnce(mockedDownload("BVBG.086.01"));
+    await appRouter.createCaller(ctx).marketData.collectB3Reports({ asOf: "2026-08-13", reportTypes: ["BVBG.086.01"], collectionMode: "automatic" });
+    expect(mocks.collectB3OfficialPriceReport).toHaveBeenCalledWith({ reportType: "BVBG.086.01", asOf: "2026-08-13", persistRaw: false, timeoutMs: 25_000, maxAttempts: 1, retryDelayMs: 0 });
   });
 
   it("lê candidatos B3 normalizados por família somente com cadastro e preço na mesma data-base", async () => {

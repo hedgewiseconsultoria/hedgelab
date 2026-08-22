@@ -7,7 +7,7 @@ import React, { useMemo, useState } from "react";
 import type { CanonicalHedgeDataframes, SessionInstrumentMasterRow } from "../../../server/domain/dataframes";
 import type { CommodityFutureSizingPublication } from "../../../server/domain/canonicalCommodityFutureSizing";
 
-const unitLabels = { ARROBA: "arroba", SACA_60KG: "saca de 60 kg", METRIC_TON: "tonelada métrica" } as const;
+const unitLabels = { ARROBA: "arroba", SACA_60KG: "saca de 60 kg", METRIC_TON: "tonelada métrica", CUBIC_METER: "metro cúbico", TROY_OUNCE: "onça troy" } as const;
 
 export default function CommodityFutureSizer({ dataframes, instrumentMasterRows, onSizing }: { dataframes: CanonicalHedgeDataframes; instrumentMasterRows: SessionInstrumentMasterRow[]; onSizing?: (publication: CommodityFutureSizingPublication) => void }) {
   const [economicSituationId, setEconomicSituationId] = useState("");

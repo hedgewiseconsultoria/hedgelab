@@ -5,6 +5,9 @@ import { ENV } from "./_core/env";
 
 type SessionStoredObject = { data: Buffer; contentType: string };
 const sessionStorage = new Map<string, SessionStoredObject>();
+const SESSION_STORAGE_MAX_BYTES = 24 * 1024 * 1024;
+const SESSION_STORAGE_MAX_OBJECT_BYTES = 6 * 1024 * 1024;
+let sessionStorageBytes = 0;
 
 function getForgeConfig() {
   const forgeUrl = ENV.forgeApiUrl;
@@ -25,8 +28,13 @@ function appendHashSuffix(relKey: string): string {
 }
 
 function storeInSession(relKey: string, data: Buffer | Uint8Array | string, contentType: string) {
+  const bytes = typeof data === "string" ? Buffer.from(data) : Buffer.from(data);
+  if (bytes.length > SESSION_STORAGE_MAX_OBJECT_BYTES || sessionStorageBytes + bytes.length > SESSION_STORAGE_MAX_BYTES) {
+    throw new Error("Armazenamento temporário do serviço atingiu o limite seguro. O artefato não foi retido em memória; tente novamente com fonte persistente disponível.");
+  }
   const key = `session/${appendHashSuffix(normalizeKey(relKey))}`;
-  sessionStorage.set(key, { data: typeof data === "string" ? Buffer.from(data) : Buffer.from(data), contentType });
+  sessionStorage.set(key, { data: bytes, contentType });
+  sessionStorageBytes += bytes.length;
   return { key, url: `/manus-storage/${key}` };
 }
 

@@ -13,6 +13,7 @@ const PARSER_VERSION = "b3-bvbg-price-report-v1";
 
 export type B3PriceParseContext = Omit<DataLineage, "parserVersion" | "validationStatus"> & {
   expectedReportType: B3PriceReportType;
+  includeRow?: (row: B3PriceRow) => boolean;
 };
 
 type MutablePriceRow = Omit<B3PriceRow, "sourceFile" | "sourceHashSha256" | "reportType">;
@@ -194,8 +195,11 @@ export async function parseB3PriceReportXmlStream(readable: Readable, context: B
       attributesByPath.delete(path);
       if (tagName === "PricRpt" && currentRow) {
         currentRow.sourceMessageType = header.messageType;
-        issues.push(...validateRow(currentRow));
-        rows.push({ ...currentRow, reportType: context.expectedReportType, sourceFile: context.sourceFile, sourceHashSha256: context.sourceHashSha256 });
+        const row = { ...currentRow, reportType: context.expectedReportType, sourceFile: context.sourceFile, sourceHashSha256: context.sourceHashSha256 };
+        if (!context.includeRow || context.includeRow(row)) {
+          issues.push(...validateRow(currentRow));
+          rows.push(row);
+        }
         currentRow = null;
       }
       stack.pop();

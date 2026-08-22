@@ -10,6 +10,7 @@ export const SUPPORTED_B3_FAMILIES = [
   "ETH",
   "CNL",
   "SJC",
+  "GLD",
 ] as const;
 
 export type SupportedB3Family = (typeof SUPPORTED_B3_FAMILIES)[number];
@@ -123,7 +124,7 @@ export type OtcInstrumentMasterRow = {
 /** Especificação oficial do produto B3; não identifica uma série contratual. */
 export type B3ProductSpecificationSessionRow = {
   instrument_id: string;
-  instrument_key: "DOL" | "WDO" | "DOL_OPTION" | "DI1" | "DI1_OPTION" | "BGI" | "CCM" | "SOY" | "SJC" | "BGI_OPTION" | "CCM_OPTION" | "SOY_OPTION" | "SJC_OPTION";
+  instrument_key: "DOL" | "WDO" | "DOL_OPTION" | "DI1" | "DI1_OPTION" | "BGI" | "ICF" | "CNL" | "ETH" | "CCM" | "GLD" | "SOY" | "SJC" | "BGI_OPTION" | "CCM_OPTION" | "SOY_OPTION" | "SJC_OPTION";
   product_kind: "B3_FX_FUTURE" | "B3_FX_OPTION" | "B3_DI_FUTURE" | "B3_DI_OPTION" | "B3_COMMODITY_FUTURE" | "B3_COMMODITY_OPTION";
   description: string;
   terms: Record<string, unknown>;
@@ -287,7 +288,7 @@ export type EconomicExposureDataframeRow = {
   notional: number;
   currency: "USD" | "BRL";
   maturity_date: string;
-  commodity_reference: "BGI" | "CCM" | "SOY" | "SJC" | null;
+  commodity_reference: "BGI" | "ICF" | "CNL" | "ETH" | "CCM" | "GLD" | "SOY" | "SJC" | null;
   indexer: "CDI" | null;
   interest_spread_pct_aa: number | null;
   declared_at_utc: string;

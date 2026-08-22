@@ -49,8 +49,8 @@ export const otcInstrumentMasterRowSchema = z.object({
 });
 
 export const b3ProductSpecificationSessionRowSchema = z.object({
-  instrument_id: z.string().regex(/^B3_PRODUCT_SPEC::(DOL|WDO|DOL_OPTION|DI1|DI1_OPTION|BGI|CCM|SOY|SJC|BGI_OPTION|CCM_OPTION|SOY_OPTION|SJC_OPTION)$/),
-  instrument_key: z.enum(["DOL", "WDO", "DOL_OPTION", "DI1", "DI1_OPTION", "BGI", "CCM", "SOY", "SJC", "BGI_OPTION", "CCM_OPTION", "SOY_OPTION", "SJC_OPTION"]),
+  instrument_id: z.string().regex(/^B3_PRODUCT_SPEC::(DOL|WDO|DOL_OPTION|DI1|DI1_OPTION|BGI|ICF|CNL|ETH|CCM|GLD|SOY|SJC|BGI_OPTION|CCM_OPTION|SOY_OPTION|SJC_OPTION)$/),
+  instrument_key: z.enum(["DOL", "WDO", "DOL_OPTION", "DI1", "DI1_OPTION", "BGI", "ICF", "CNL", "ETH", "CCM", "GLD", "SOY", "SJC", "BGI_OPTION", "CCM_OPTION", "SOY_OPTION", "SJC_OPTION"]),
   product_kind: z.enum(["B3_FX_FUTURE", "B3_FX_OPTION", "B3_DI_FUTURE", "B3_DI_OPTION", "B3_COMMODITY_FUTURE", "B3_COMMODITY_OPTION"]),
   description: z.string().min(1),
   terms: z.record(z.string(), z.unknown()),
@@ -116,7 +116,7 @@ export const lineageRowSchema = z.object({
 });
 
 export const canonicalEconomicSituationRowSchema = z.object({
-  economic_situation_id: z.string().min(1), exposure_id: z.string().min(1), situation_kind: z.enum(["USD_PAYABLE", "USD_RECEIVABLE", "CDI_LINKED_DEBT", "COMMODITY_PURCHASE", "COMMODITY_SALE"]), description: z.string().min(1), declared_quantity: z.number().finite().positive(), declared_currency: z.enum(["USD", "BRL"]), horizon_date: isoDateSchema, commodity_reference: z.enum(["BGI", "CCM", "SOY", "SJC"]).nullable(), indexer: z.literal("CDI").nullable(), origin: z.literal("USER_DECLARED"), captured_at_utc: isoInstantSchema,
+  economic_situation_id: z.string().min(1), exposure_id: z.string().min(1), situation_kind: z.enum(["USD_PAYABLE", "USD_RECEIVABLE", "CDI_LINKED_DEBT", "COMMODITY_PURCHASE", "COMMODITY_SALE"]), description: z.string().min(1), declared_quantity: z.number().finite().positive(), declared_currency: z.enum(["USD", "BRL"]), horizon_date: isoDateSchema, commodity_reference: z.enum(["BGI", "ICF", "CNL", "ETH", "CCM", "GLD", "SOY", "SJC"]).nullable(), indexer: z.literal("CDI").nullable(), origin: z.literal("USER_DECLARED"), captured_at_utc: isoInstantSchema,
 });
 export const canonicalRiskFactorRowSchema = z.object({
   risk_factor_id: z.string().min(1), economic_situation_id: z.string().min(1), risk_factor: z.enum(["USD_BRL", "CDI_RATE", "B3_COMMODITY_PRICE"]), adverse_move: z.string().min(1), economic_impact: z.string().min(1), hedge_direction: z.enum(["BUY", "SELL"]), method_version: z.literal("economic-exposure-diagnosis-v1"),

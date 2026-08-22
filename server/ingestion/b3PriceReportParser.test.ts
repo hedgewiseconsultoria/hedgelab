@@ -35,6 +35,12 @@ describe("parser B3 PriceReport", () => {
     expect(result.issues.some(issue => issue.code === "PRICE_REPORT_TYPE_MISMATCH")).toBe(true);
   });
 
+  it("filtra registros durante o streaming sem invalidar a evidência do cabeçalho", async () => {
+    const result = await parseB3PriceReportXmlStream(Readable.from([xml("BVBG.086.01", "<AdjstdQt Ccy=\"BRL\">5000</AdjstdQt>")]), { ...context, expectedReportType: "BVBG.086.01", includeRow: () => false });
+    expect(result.lineage.validationStatus).toBe("valid");
+    expect(result.dataframe).toEqual([]);
+  });
+
   it("aceita bytes ISO-8859-1 quando esta é a codificação declarada pelo XML B3", async () => {
     const latin1Xml = xml("BVBG.086.01", "<AdjstdQtTax Ccy=\"BRL\">14.366</AdjstdQtTax>")
       .replace('version="1.0"', 'version="1.0" encoding="ISO-8859-1"')
