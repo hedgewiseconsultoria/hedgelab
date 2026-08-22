@@ -18,14 +18,16 @@ describe("CdiDebtStressScenarioCard", () => {
     expect(screen.getAllByText(/DI1U26/i).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /Simular impacto da dívida/i }));
     expect(screen.getByText(/Encargo adicional sob choque/i)).toBeTruthy();
-    expect(screen.getByText(/Resultado do hedge ainda bloqueado/i)).toBeTruthy();
+    expect(screen.getByText(/Resultado efetivo do hedge permanece bloqueado/i)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Abrir ajuste DI1 avançado/i }));
     expect(openAdvanced).toHaveBeenCalledTimes(1);
   });
 
-  it("mantém o cenário bloqueado quando não houver vértice B3 validado", () => {
+  it("permite sensibilidade didática pelo horizonte declarado quando não houver vértice B3 validado", () => {
     render(<CdiDebtStressScenarioCard situation={situation} alternative={alternative} curve={null} onOpenAdvanced={vi.fn()} />);
-    expect(screen.getByText(/ainda não possui vértices DI1 válidos/i)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /Simular impacto da dívida/i })).toBeNull();
+    expect(screen.getByText(/Sem vértice DI1 B3 nesta sessão/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Simular impacto da dívida/i }));
+    expect(screen.getByText(/Encargo adicional sob choque/i)).toBeTruthy();
+    expect(screen.getByText(/Resultado efetivo do hedge permanece bloqueado/i)).toBeTruthy();
   });
 });

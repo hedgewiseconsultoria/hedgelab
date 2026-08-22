@@ -19,4 +19,14 @@ describe("CommodityStrategyComparatorCard", () => {
     expect(screen.getByText(/Hipótese didática, não preço B3/)).toBeTruthy();
     expect(screen.getByText("EM ANÁLISE")).toBeTruthy();
   });
+
+  it("configura venda física com futuro vendido sem exigir cotação B3 para o cenário didático", () => {
+    render(<CommodityStrategyComparatorCard
+      situation={{ economic_situation_id: "sit-gld", exposure_id: "exp-gld", situation_kind: "COMMODITY_SALE", description: "Venda de ouro", declared_quantity: 30, declared_currency: "USD", horizon_date: "2026-12-15", commodity_reference: "GLD", indexer: null, origin: "USER_DECLARED", captured_at_utc: "2026-08-22T00:00:00.000Z" }}
+      alternative={{ alternative_id: "alt-gld", exposure_id: "exp-gld", alternative_kind: "B3_COMMODITY_FUTURE", label: "Futuro de Ouro", risk_factor: "B3_COMMODITY_PRICE", hedge_direction: "SELL", eligibility_status: "eligible_with_market_data", required_data: ["série GLD"], blocking_reason: null, source_ids: ["B3_PUBLIC_FILES"], method_version: "hedge-alternatives-v1", economic_situation_id: "sit-gld", risk_factor_id: "risk-gld", origin: "CATALOG_DERIVED" }}
+    />);
+    expect(screen.getByText(/Venda física: queda de preço reduz a receita/i)).toBeTruthy();
+    expect(screen.getByText(/posição vendida em futuro/i)).toBeTruthy();
+    expect(screen.getByText(/Hipótese didática, não preço B3/i)).toBeTruthy();
+  });
 });

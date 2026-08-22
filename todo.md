@@ -205,4 +205,10 @@
 - [x] Diagnosticar a causa do encerramento LIFECYCLE/502 no Web Service Render, incluindo porta, comando de inicialização, memória e operações B3 de longa duração.
 - [x] Corrigir o servidor e a estratégia de atualização para que chamadas B3 lentas não impeçam a resposta de saúde, o carregamento da aplicação ou os endpoints tRPC.
 - [x] Revalidar o diagnóstico USD e o cenário DOL em execução de produção-equivalente, garantindo resposta tRPC JSON e estado orientativo quando a fonte oficial estiver indisponível.
-- [ ] Preparar pacote leve revisado e roteiro de redeploy no Render com as configurações exatas do serviço estabilizado.
+- [x] Preparar pacote leve revisado e roteiro de redeploy no Render com as configurações exatas do serviço estabilizado.
+- [x] Auditar a jornada completa como usuário para Ouro, DI1, USD e commodities, identificando cada ida técnica, campo duplicado, espera improdutiva e bloqueio sem próximo passo.
+- [x] Corrigir a disponibilidade contextual de Ouro e DI1, distinguindo fonte oficial indisponível de ausência de contrato/vértice, sem manter a pessoa em tela de consulta contínua.
+- [x] Conectar a exposição líquida por vencimento à alternativa escolhida, preenchendo operação, unidade, direção, vencimento, cobertura inicial e requisitos a partir dos dados já declarados.
+- [x] Reorganizar Simular e comparar como sequência única de diagnóstico, cobertura, cenários e decisão, relegando dimensionamento e contratos avançados a detalhes progressivos.
+- [x] Testar e documentar jornadas sem idas e vindas para dívida CDI, ouro, pagamento USD e compra/venda de commodities.
+- [ ] Confirmar a coleta integral de séries B3 de Ouro e DI1 em produção antes de liberar qualquer cotação, ajuste ou cálculo efetivo dependente dessas evidências.
