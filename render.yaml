@@ -8,3 +8,11 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22.13.0
+      # Cache diário de boletins oficiais B3 (ver docs/CACHE_DIARIO_B3_GITHUB_ACTIONS.md).
+      # Repositório público: nenhum token é necessário para leitura.
+      - key: B3_SNAPSHOT_CACHE_GITHUB_OWNER
+        value: hedgewiseconsultoria
+      - key: B3_SNAPSHOT_CACHE_GITHUB_REPO
+        value: hedgelab
+      - key: B3_SNAPSHOT_CACHE_GITHUB_BRANCH
+        value: main

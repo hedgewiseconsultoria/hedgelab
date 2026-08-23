@@ -9,6 +9,7 @@ type Exposure = {
   currency: string;
   direction: "RECEIVABLE" | "PAYABLE";
   notional: number;
+  exposureClass?: "FINANCIAL" | "PHYSICAL_COMMODITY";
 };
 
 function brl(value: number) {
@@ -21,7 +22,8 @@ export type FxScenarioSessionSnapshot = {
 };
 
 export default function FxScenarioLab({ exposures, ptaxSale, onSessionSnapshot }: { exposures: Exposure[]; ptaxSale: number | undefined; onSessionSnapshot?: (snapshot: FxScenarioSessionSnapshot | null) => void }) {
-  const usdExposures = useMemo(() => exposures.filter(exposure => exposure.currency === "USD"), [exposures]);
+  // Commodities cotadas em USD (café arábica, ouro, soja) são posições físicas, não caixa em dólar — não entram no estresse cambial.
+  const usdExposures = useMemo(() => exposures.filter(exposure => exposure.currency === "USD" && exposure.exposureClass !== "PHYSICAL_COMMODITY"), [exposures]);
   const [selectedId, setSelectedId] = useState("");
   const [shockPct, setShockPct] = useState("10");
   const [volPct, setVolPct] = useState("1");

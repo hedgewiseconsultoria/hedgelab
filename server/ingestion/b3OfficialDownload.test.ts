@@ -1,5 +1,6 @@
 import AdmZip from "adm-zip";
-import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { collectB3OfficialPriceReport, collectB3OfficialReport } from "./b3OfficialDownload";
 
 function nestedZip(filename: string, xmlFilename: string) {
@@ -11,6 +12,33 @@ function nestedZip(filename: string, xmlFilename: string) {
 }
 
 describe("coletor oficial B3", () => {
+  const ORIGINAL_ENV = { ...process.env };
+  afterEach(() => { process.env = { ...ORIGINAL_ENV }; vi.unstubAllGlobals(); });
+
+  it("serve do snapshot cache do GitHub sem chamar o fetcher ao vivo, quando o hash confere", async () => {
+    process.env.B3_SNAPSHOT_CACHE_GITHUB_OWNER = "acme";
+    process.env.B3_SNAPSHOT_CACHE_GITHUB_REPO = "hedge-lab-data";
+    const body = nestedZip("PR260814.zip", "BVBG.086.01_BV000328.xml");
+    const hash = createHash("sha256").update(body).digest("hex");
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (String(url).endsWith(".sha256?ref=main")) return new Response(hash, { status: 200 });
+      return new Response(body, { status: 200 });
+    }));
+    const liveFetcher = vi.fn();
+    const output = await collectB3OfficialPriceReport({ reportType: "BVBG.086.01", asOf: "2026-08-14", fetcher: liveFetcher });
+    expect(liveFetcher).not.toHaveBeenCalled();
+    expect(output.retrievalSource).toBe("github_snapshot_cache");
+    expect(output.attempts).toBe(0);
+    expect(output.xmlFiles).toHaveLength(1);
+  });
+
+  it("cai para o download ao vivo quando o snapshot cache não está configurado", async () => {
+    const body = nestedZip("PR260814.zip", "BVBG.086.01_BV000328.xml");
+    const output = await collectB3OfficialPriceReport({ reportType: "BVBG.086.01", asOf: "2026-08-14", fetcher: async () => new Response(body, { status: 200 }) });
+    expect(output.retrievalSource).toBe("live");
+    expect(output.attempts).toBe(1);
+  });
+
   it("usa o fluxo publicado, preserva hash e extrai somente XMLs do tipo solicitado", async () => {
     const body = nestedZip("PR260814.zip", "BVBG.086.01_BV000328.xml");
     const output = await collectB3OfficialPriceReport({

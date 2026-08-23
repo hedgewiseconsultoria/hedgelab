@@ -66,6 +66,7 @@ vi.mock("./B3ManualCollectionCard", () => ({ default: () => null }));
 vi.mock("./B3ObservationSelector", () => ({ default: () => null }));
 vi.mock("./B3FxFutureDailySettlementCard", () => ({ default: () => null }));
 vi.mock("./B3DollarOptionIntrinsicSettlementCard", () => ({ default: () => null }));
+vi.mock("./B3DollarOptionPremiumMtmGreeksCard", () => ({ default: () => null }));
 vi.mock("./B3CornOptionIntrinsicSettlementCard", () => ({ default: () => null }));
 vi.mock("./B3CattleOptionIntrinsicSettlementCard", () => ({ default: () => null }));
 vi.mock("./B3SoyOptionIntrinsicSettlementCard", () => ({ default: () => null }));

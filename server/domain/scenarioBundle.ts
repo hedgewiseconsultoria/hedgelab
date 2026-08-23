@@ -68,9 +68,23 @@ export const exposureRowSchema = z.object({
   description: z.string().min(1),
   currency: z.string().regex(/^[A-Z]{3}$/, "Moeda deve ter três letras maiúsculas."),
   direction: z.enum(["RECEIVABLE", "PAYABLE"]),
-  notional: z.number().finite().positive(),
+  // FINANCIAL: valor monetário em `currency` (deve ser > 0). PHYSICAL_COMMODITY: sempre 0 — a quantidade real vive em physical_quantity/physical_unit.
+  notional: z.number().finite(),
   cashflow_date: isoDateSchema,
   created_at_utc: isoInstantSchema,
+  exposure_class: z.enum(["FINANCIAL", "PHYSICAL_COMMODITY"]).optional(),
+  physical_quantity: z.number().finite().positive().nullable().optional(),
+  physical_unit: z.string().min(1).nullable().optional(),
+  commodity_reference: z.enum(["BGI", "ICF", "CNL", "ETH", "CCM", "GLD", "SOY", "SJC"]).nullable().optional(),
+}).superRefine((row, ctx) => {
+  const isPhysical = row.exposure_class === "PHYSICAL_COMMODITY";
+  if (isPhysical) {
+    if (row.notional !== 0) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["notional"], message: "Exposição física deve declarar notional = 0; a quantidade real vive em physical_quantity." });
+    if (!row.physical_quantity || row.physical_quantity <= 0) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["physical_quantity"], message: "Exposição física exige uma quantidade positiva." });
+    if (!row.physical_unit) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["physical_unit"], message: "Exposição física exige uma unidade declarada." });
+  } else if (row.notional <= 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["notional"], message: "Exposição financeira exige um nocional monetário positivo." });
+  }
 });
 
 export const hedgeRowSchema = z.object({

@@ -4,6 +4,10 @@ export type AuditExposure = {
   direction: "RECEIVABLE" | "PAYABLE";
   notional: number;
   cashflow_date: string;
+  exposureClass?: "FINANCIAL" | "PHYSICAL_COMMODITY";
+  physicalQuantity?: number | null;
+  physicalUnit?: string | null;
+  commodityReference?: string | null;
 };
 
 export type AuditLineage = {

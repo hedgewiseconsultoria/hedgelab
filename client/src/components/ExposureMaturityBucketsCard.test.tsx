@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import React from "react";
 import { describe, expect, it } from "vitest";
 import ExposureMaturityBucketsCard from "./ExposureMaturityBucketsCard";
@@ -19,5 +19,18 @@ describe("ExposureMaturityBucketsCard", () => {
     expect(container.querySelector("table")?.className).toContain("min-w-[620px]");
     expect(container.querySelector("tbody")?.className).toContain("text-[#294a50]");
     expect(screen.getByText("Vencimento").closest("thead")?.className).toContain("text-[#456970]");
+  });
+
+  it("nunca soma quantidade física de commodity como valor monetário e mostra a posição em uma tabela separada", () => {
+    const { container } = render(<ExposureMaturityBucketsCard exposures={[
+      { exposure_id: "EXP-1", currency: "USD", direction: "RECEIVABLE", notional: 100000, cashflow_date: "2026-10-01" },
+      { exposure_id: "EXP-4", currency: "BRL", direction: "PAYABLE", notional: 0, cashflow_date: "2026-09-24", exposureClass: "PHYSICAL_COMMODITY", physicalQuantity: 1000, physicalUnit: "SACA_60KG", commodityReference: "CCM" },
+    ]} />);
+    // A quantidade física (1.000) não pode aparecer como "R$ 1.000,00" na tabela de fluxos monetários.
+    expect(container.textContent).not.toMatch(/R\$\s*1\.000,00/);
+    expect(within(container).getByText("Posições físicas de commodity por vencimento")).toBeTruthy();
+    expect(within(container).getByText("CCM")).toBeTruthy();
+    expect(within(container).getByText("SACA_60KG")).toBeTruthy();
+    expect(within(container).getByText("1.000")).toBeTruthy();
   });
 });

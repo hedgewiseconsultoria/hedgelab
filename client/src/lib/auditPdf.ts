@@ -5,6 +5,10 @@ function money(value: number, currency: string) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency, maximumFractionDigits: 2 }).format(value);
 }
 
+function quantity(value: number) {
+  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 }).format(value);
+}
+
 function appendWrapped(pdf: jsPDF, text: string, x: number, y: number, width: number, lineHeight = 5): number {
   const lines = pdf.splitTextToSize(text, width) as string[];
   pdf.text(lines, x, y);
@@ -68,7 +72,10 @@ export function downloadAuditPdf(input: {
   } else {
     for (const exposure of model.exposures) {
       y = ensureSpace(pdf, y, 14);
-      y = appendWrapped(pdf, `${exposure.description} | ${exposure.direction === "PAYABLE" ? "Pagável" : "Recebível"} | ${money(exposure.notional, exposure.currency)} | Fluxo: ${exposure.cashflow_date}`, 16, y, 178);
+      const amountLabel = exposure.exposureClass === "PHYSICAL_COMMODITY"
+        ? `${quantity(exposure.physicalQuantity ?? 0)} ${exposure.physicalUnit ?? ""} (${exposure.commodityReference ?? "commodity"}) — quantidade física, sem valor monetário implícito`
+        : money(exposure.notional, exposure.currency);
+      y = appendWrapped(pdf, `${exposure.description} | ${exposure.direction === "PAYABLE" ? "Pagável" : "Recebível"} | ${amountLabel} | Fluxo: ${exposure.cashflow_date}`, 16, y, 178);
       y += 2;
     }
   }

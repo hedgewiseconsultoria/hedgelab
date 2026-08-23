@@ -4,6 +4,7 @@ import { Readable } from "node:stream";
 import yauzl from "yauzl";
 import { storagePut } from "../storage";
 import type { B3PriceReportType } from "../domain/dataframes";
+import { readB3ArchiveFromSnapshotCache } from "./b3SnapshotCache";
 
 const B3_DOWNLOAD_URL = "https://www.b3.com.br/pesquisapregao/download";
 
@@ -26,6 +27,10 @@ export type B3OfficialDownload = {
   innerArchive: { filename: string; bytes: number; sha256: string };
   xmlFiles: B3OfficialXmlFile[];
   validationStatus: "downloaded" | "validated";
+  /** "live": baixado da B3 nesta requisição. "github_snapshot_cache": mesmo pacote ZIP oficial, servido do snapshot diário — bytes idênticos, hash verificado. */
+  retrievalSource: "live" | "github_snapshot_cache";
+  /** Só preenchido quando `includeRawOuterBuffer` é solicitado (uso interno do script de coleta diária) — bytes do ZIP externo tal como recebido. */
+  rawOuterBuffer?: Buffer;
 };
 
 type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
@@ -120,6 +125,10 @@ export async function collectB3OfficialReport(input: {
   maxAttempts?: number;
   retryDelayMs?: number;
   fetcher?: FetchLike;
+  /** Uso interno do script de coleta diária (`scripts/collect-b3-daily-snapshot.mjs`): inclui os bytes do ZIP externo no retorno para gravação no snapshot. Nunca usado no caminho de requisição do usuário. */
+  includeRawOuterBuffer?: boolean;
+  /** Ignora o snapshot cache e força um download ao vivo. Usado pelo próprio script de coleta, para não ler um cache que ele está prestes a atualizar. */
+  skipSnapshotCache?: boolean;
 }): Promise<B3OfficialDownload> {
   const spec = reportSpec[input.reportType];
   const dateStamp = toB3DateStamp(input.asOf);
@@ -133,8 +142,15 @@ export async function collectB3OfficialReport(input: {
   let attempts = 0;
   let outerBuffer: Buffer | null = null;
   let finalError: Error | null = null;
+  let retrievalSource: "live" | "github_snapshot_cache" = "live";
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+  const cached = input.skipSnapshotCache ? null : await readB3ArchiveFromSnapshotCache({ reportType: input.reportType, asOf: input.asOf, archiveFilename });
+  if (cached) {
+    outerBuffer = cached.buffer;
+    retrievalSource = "github_snapshot_cache";
+  }
+
+  for (let attempt = 1; !outerBuffer && attempt <= maxAttempts; attempt += 1) {
     attempts = attempt;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -189,6 +205,8 @@ export async function collectB3OfficialReport(input: {
     innerArchive: { filename: archiveFilename, bytes: innerBuffer.length, sha256: sha256(innerBuffer) },
     xmlFiles,
     validationStatus: "downloaded",
+    retrievalSource,
+    ...(input.includeRawOuterBuffer ? { rawOuterBuffer: outerBuffer } : {}),
   };
 }
 

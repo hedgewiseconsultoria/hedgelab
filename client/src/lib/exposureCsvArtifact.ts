@@ -8,6 +8,10 @@ export type ExposureCsvRow = {
   notional: number;
   cashflow_date: string;
   created_at_utc: string;
+  exposure_class?: "FINANCIAL" | "PHYSICAL_COMMODITY";
+  physical_quantity?: number | null;
+  physical_unit?: string | null;
+  commodity_reference?: string | null;
 };
 
 export type ExposureCsvManifest = {
@@ -56,7 +60,18 @@ function assertExposureRows(rows: Array<Record<string, string>>): ExposureCsvRow
     const notional = Number(row.notional);
     if (!Number.isFinite(notional)) throw new Error(`CSV inválido: o nocional da linha ${index + 2} é inválido.`);
     if (row.direction !== "RECEIVABLE" && row.direction !== "PAYABLE") throw new Error(`CSV inválido: a direção da linha ${index + 2} é inválida.`);
-    return { exposure_id: row.exposure_id!, description: row.description!, currency: row.currency!, direction: row.direction, notional, cashflow_date: row.cashflow_date!, created_at_utc: row.created_at_utc! };
+    const base: ExposureCsvRow = { exposure_id: row.exposure_id!, description: row.description!, currency: row.currency!, direction: row.direction, notional, cashflow_date: row.cashflow_date!, created_at_utc: row.created_at_utc! };
+    // Colunas físicas são opcionais e só existem em CSVs exportados após a versão 1.1 do schema — preservadas apenas quando o cabeçalho as trouxer, para não quebrar o round-trip de arquivos antigos.
+    if ("exposure_class" in row) {
+      const exposureClass = row.exposure_class === "PHYSICAL_COMMODITY" ? "PHYSICAL_COMMODITY" as const : row.exposure_class === "FINANCIAL" ? "FINANCIAL" as const : undefined;
+      const physicalQuantity = row.physical_quantity?.trim() ? Number(row.physical_quantity) : null;
+      if (row.physical_quantity?.trim() && !Number.isFinite(physicalQuantity)) throw new Error(`CSV inválido: a quantidade física da linha ${index + 2} é inválida.`);
+      base.exposure_class = exposureClass;
+      base.physical_quantity = physicalQuantity;
+      base.physical_unit = row.physical_unit?.trim() || null;
+      base.commodity_reference = row.commodity_reference?.trim() || null;
+    }
+    return base;
   });
 }
 

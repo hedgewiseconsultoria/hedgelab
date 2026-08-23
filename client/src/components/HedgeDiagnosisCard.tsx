@@ -15,6 +15,7 @@ type CommodityReference = "BGI" | "ICF" | "CNL" | "ETH" | "CCM" | "GLD" | "SOY" 
 export type GuidedExposurePublication = {
   exposureId: string;
   description: string;
+  /** Para exposições financeiras (USD/CDI), valor monetário. Para commodities, é a MESMA quantidade física — nunca trate como moeda. */
   amount: number;
   currency: "USD" | "BRL";
   direction: "PAYABLE" | "RECEIVABLE";
@@ -25,6 +26,10 @@ export type GuidedExposurePublication = {
   commodityReference: CommodityReference | null;
   indexer: "CDI" | null;
   interestSpreadPctAa: number | null;
+  /** FINANCIAL: `amount` é um valor monetário em `currency`. PHYSICAL_COMMODITY: `amount` é uma quantidade física em `unit`, sem valor monetário implícito. */
+  exposureClass: "FINANCIAL" | "PHYSICAL_COMMODITY";
+  physicalQuantity: number | null;
+  physicalUnit: string | null;
 };
 
 const commoditySpecs: Record<CommodityReference, { label: string; unit: string; currency: "USD" | "BRL" }> = {
@@ -91,7 +96,7 @@ export default function HedgeDiagnosisCard({ onCanonicalDataframes, onRegistered
     const diagnosed = result?.data ?? diagnosis.data;
     if (!diagnosed) return;
     onCanonicalDataframes?.(diagnosed.canonicalDataframes);
-    onRegistered?.({ exposureId: input.exposureId, description: description.trim(), amount: input.notional, currency, direction, maturityDate, kind, economicVariable, unit: isCommodity ? unit : currency, commodityReference: isCommodity ? commodityReference : null, indexer: kind === "CDI_LINKED_DEBT" ? "CDI" : null, interestSpreadPctAa: kind === "CDI_LINKED_DEBT" && interestSpread.trim() ? Number(interestSpread.replace(",", ".")) : null });
+    onRegistered?.({ exposureId: input.exposureId, description: description.trim(), amount: input.notional, currency, direction, maturityDate, kind, economicVariable, unit: isCommodity ? unit : currency, commodityReference: isCommodity ? commodityReference : null, indexer: kind === "CDI_LINKED_DEBT" ? "CDI" : null, interestSpreadPctAa: kind === "CDI_LINKED_DEBT" && interestSpread.trim() ? Number(interestSpread.replace(",", ".")) : null, exposureClass: isCommodity ? "PHYSICAL_COMMODITY" : "FINANCIAL", physicalQuantity: isCommodity ? input.notional : null, physicalUnit: isCommodity ? unit : null });
     setRegisteredResult(diagnosed);
     toast.success("Exposição econômica declarada e alternativas vinculadas à sessão.");
   };
@@ -103,7 +108,7 @@ export default function HedgeDiagnosisCard({ onCanonicalDataframes, onRegistered
       <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <div><Label htmlFor="guided-kind" className="font-semibold text-[#294a50]">Variável econômica</Label><select id="guided-kind" value={kind} onChange={event => setKind(event.target.value as ExposureKind)} className="mt-1.5 h-10 w-full rounded-md border border-[#9fbbb5] bg-white px-3 text-sm font-medium text-[#17363e]"><option value="USD_PAYABLE">USD/BRL — despesa em dólar</option><option value="USD_RECEIVABLE">USD/BRL — receita em dólar</option><option value="CDI_LINKED_DEBT">CDI — dívida pós-fixada</option><option value="COMMODITY_PURCHASE">Preço de commodity — compra</option><option value="COMMODITY_SALE">Preço de commodity — venda</option></select></div>
         <div><Label htmlFor="guided-description" className="font-semibold text-[#294a50]">Descrição do compromisso</Label><Input id="guided-description" value={description} onChange={event => setDescription(event.target.value)} className="mt-1.5 border-[#9fbbb5] bg-white text-[#17363e]" /></div>
-        <div><Label htmlFor="guided-amount" className="font-semibold text-[#294a50]">{isCommodity ? "Quantidade física declarada" : "Valor financeiro da exposição"}</Label><Input id="guided-amount" inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder={isCommodity ? "Ex.: 1.000" : "Ex.: 250.000,00"} className="mt-1.5 border-[#9fbbb5] bg-white text-[#17363e] placeholder:text-[#58747a]" /></div>
+        <div><Label htmlFor="guided-amount" className="font-semibold text-[#294a50]">{isCommodity ? "Quantidade física declarada" : "Valor financeiro da exposição"}</Label><Input id="guided-amount" inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder={isCommodity ? "Ex.: 1.000" : "Ex.: 250.000,00"} className="mt-1.5 border-[#9fbbb5] bg-white text-[#17363e] placeholder:text-[#58747a]" />{isCommodity && <p className="mt-1 text-[11px] text-[#4d6d72]">Número de unidades físicas ({unit || "unidade a definir"}), não um valor em {currency}. O valor financeiro só existe quando multiplicado por um preço oficial validado.</p>}</div>
         {isCommodity && <><div><Label htmlFor="guided-commodity" className="font-semibold text-[#294a50]">Referência econômica</Label><select id="guided-commodity" value={commodityReference} onChange={event => { const next = event.target.value as CommodityReference; setCommodityReference(next); setUnit(commoditySpecs[next].unit); }} className="mt-1.5 h-10 w-full rounded-md border border-[#9fbbb5] bg-white px-3 text-sm font-medium text-[#17363e]">{commodityReferences.map(reference => <option key={reference} value={reference}>{commoditySpecs[reference].label} ({reference})</option>)}</select></div><div><Label htmlFor="guided-unit" className="font-semibold text-[#294a50]">Unidade física declarada</Label><select id="guided-unit" value={unit} onChange={event => setUnit(event.target.value)} className="mt-1.5 h-10 w-full rounded-md border border-[#9fbbb5] bg-white px-3 text-sm font-medium text-[#17363e]"><option value="ARROBA">Arroba</option><option value="SACA_60KG">Saca de 60 kg</option><option value="METRIC_TON">Tonelada métrica</option><option value="CUBIC_METER">Metro cúbico</option><option value="TROY_OUNCE">Onça troy</option></select><p className="mt-1 text-[11px] text-[#4d6d72]">Cotação de referência: {currency}. Nenhuma conversão automática de unidade ou moeda é aplicada.</p></div></>}
         {kind === "CDI_LINKED_DEBT" && <div><Label htmlFor="guided-spread" className="font-semibold text-[#294a50]">Spread contratual (% a.a., opcional)</Label><Input id="guided-spread" inputMode="decimal" value={interestSpread} onChange={event => setInterestSpread(event.target.value)} placeholder="Ex.: 2,00" className="mt-1.5 border-[#9fbbb5] bg-white text-[#17363e]" /></div>}
         <div><Label htmlFor="guided-maturity" className="font-semibold text-[#294a50]">Vencimento ou horizonte</Label><Input id="guided-maturity" type="date" value={maturityDate} onChange={event => setMaturityDate(event.target.value)} className="mt-1.5 border-[#9fbbb5] bg-white text-[#17363e]" /></div>

@@ -10,6 +10,7 @@ type Exposure = {
   currency: string;
   direction: "RECEIVABLE" | "PAYABLE";
   notional: number;
+  exposureClass?: "FINANCIAL" | "PHYSICAL_COMMODITY";
 };
 
 export type FxFutureSizingSessionPublication = {
@@ -25,7 +26,8 @@ function money(value: number) {
 }
 
 export default function FxFutureSizer({ exposures, onSizing }: { exposures: Exposure[]; onSizing?: (publication: FxFutureSizingSessionPublication) => void }) {
-  const usdExposures = useMemo(() => exposures.filter(exposure => exposure.currency === "USD"), [exposures]);
+  // Commodities cotadas em USD (café arábica, ouro, soja) são posições físicas, não caixa em dólar — não entram no dimensionamento de futuro DOL/WDO.
+  const usdExposures = useMemo(() => exposures.filter(exposure => exposure.currency === "USD" && exposure.exposureClass !== "PHYSICAL_COMMODITY"), [exposures]);
   const [selectedId, setSelectedId] = useState("");
   const [contract, setContract] = useState<"DOL" | "WDO">("WDO");
   const [roundingPolicy, setRoundingPolicy] = useState<"FLOOR" | "NEAREST" | "CEILING">("NEAREST");

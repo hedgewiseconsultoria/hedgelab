@@ -99,6 +99,46 @@ function validBundleInput() {
 }
 
 describe("pacote de cenário", () => {
+  it("preserva uma exposição física de commodity (quantidade, não valor monetário) no round-trip", () => {
+    const input = validBundleInput();
+    input.dataframes.exposure_dataframe = [
+      ...input.dataframes.exposure_dataframe,
+      {
+        exposure_id: "exp-2",
+        description: "Compra empresarial de Milho",
+        currency: "BRL",
+        direction: "PAYABLE" as const,
+        notional: 0,
+        cashflow_date: "2026-09-24",
+        created_at_utc: "2026-08-17T18:00:00.000Z",
+        exposure_class: "PHYSICAL_COMMODITY" as const,
+        physical_quantity: 1000,
+        physical_unit: "SACA_60KG",
+        commodity_reference: "CCM" as const,
+      },
+    ];
+    const restored = importScenarioBundle(JSON.stringify(createScenarioBundle(input)));
+    const physical = restored.dataframes.exposure_dataframe.find(row => row.exposure_id === "exp-2");
+    expect(physical).toMatchObject({ notional: 0, exposure_class: "PHYSICAL_COMMODITY", physical_quantity: 1000, physical_unit: "SACA_60KG", commodity_reference: "CCM" });
+  });
+
+  it("rejeita exposição física sem quantidade física e exposição financeira com nocional zero", () => {
+    const withoutQuantity = validBundleInput();
+    withoutQuantity.dataframes.exposure_dataframe.push({
+      exposure_id: "exp-bad-1", description: "Sem quantidade", currency: "BRL", direction: "PAYABLE" as const, notional: 0,
+      cashflow_date: "2026-09-24", created_at_utc: "2026-08-17T18:00:00.000Z", exposure_class: "PHYSICAL_COMMODITY" as const,
+      physical_quantity: null, physical_unit: null, commodity_reference: null,
+    });
+    expect(() => createScenarioBundle(withoutQuantity)).toThrow();
+
+    const zeroFinancial = validBundleInput();
+    zeroFinancial.dataframes.exposure_dataframe.push({
+      exposure_id: "exp-bad-2", description: "Financeiro zerado", currency: "USD", direction: "PAYABLE" as const, notional: 0,
+      cashflow_date: "2026-09-24", created_at_utc: "2026-08-17T18:00:00.000Z",
+    });
+    expect(() => createScenarioBundle(zeroFinancial)).toThrow();
+  });
+
   it("exporta e reimporta o pacote preservando a integridade do hash", () => {
     const bundle = createScenarioBundle(validBundleInput());
     const restored = importScenarioBundle(JSON.stringify(bundle));
