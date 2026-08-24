@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import HedgeOperationCard from "./HedgeOperationCard";
 
@@ -20,5 +20,24 @@ describe("HedgeOperationCard", () => {
     expect(onCoverageChange).toHaveBeenCalledWith(50);
     fireEvent.click(screen.getByRole("button", { name: /Comparar cenários de preço e cobertura/i }));
     expect(onOpenSimulation).toHaveBeenCalledTimes(1);
+  });
+
+  it("mostra o botão de vinculação para uma alternativa B3 e aciona o callback ao clicar", () => {
+    const onLinkCommodityMarket = vi.fn();
+    render(<HedgeOperationCard situation={situation} alternative={alternative} coveragePct={100} onCoverageChange={vi.fn()} commodityMarketStatus="idle" onLinkCommodityMarket={onLinkCommodityMarket} />);
+    fireEvent.click(screen.getByRole("button", { name: /Vincular série e cotação B3/i }));
+    expect(onLinkCommodityMarket).toHaveBeenCalledTimes(1);
+  });
+
+  it("mostra a cotação oficial real e some com o botão quando a série está vinculada, sem inventar preço", () => {
+    const { container } = render(<HedgeOperationCard situation={situation} alternative={alternative} coveragePct={100} onCoverageChange={vi.fn()} commodityMarketStatus="linked" commodityMarketObservation={{ symbol: "GLDZ26", adjustedQuote: 415.32, lastPrice: 414.9, maturity: "2026-12-18", sourceAsOf: "2026-08-21", sourceHashSha256: "a".repeat(64) }} onLinkCommodityMarket={vi.fn()} />);
+    expect(within(container).getByText(/Série GLDZ26 vinculada/i)).toBeTruthy();
+    expect(within(container).getByText(/2026-08-21/)).toBeTruthy();
+    expect(within(container).queryByRole("button", { name: /Vincular série e cotação B3/i })).toBeNull();
+  });
+
+  it("informa honestamente quando os boletins foram coletados mas nenhuma série bate com o vencimento declarado", () => {
+    const { container } = render(<HedgeOperationCard situation={situation} alternative={alternative} coveragePct={100} onCoverageChange={vi.fn()} commodityMarketStatus="not_found" onLinkCommodityMarket={vi.fn()} />);
+    expect(within(container).getByText(/nenhuma série encontrada para o vencimento declarado/i)).toBeTruthy();
   });
 });

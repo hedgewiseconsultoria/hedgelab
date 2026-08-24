@@ -249,6 +249,45 @@ async function collectAndBuildB3DiFutureCurve(input: { asOf: string }) {
   return { collectedAtUtc, storageMode: "object_storage_without_database" as const, marketAssociationStatus: market.associationStatus, curve: { ...curve, csv: manifest.csv, manifest: { storageKey: manifestStored.key, storageUrl: manifestStored.url } } };
 }
 
+async function collectB3MarketObservations(input: { family: import("./domain/dataframes").SupportedB3Family; asOf: string }) {
+  const collectedAtUtc = new Date().toISOString();
+  const [priceDownload, instrumentDownload] = await Promise.all([
+    collectB3OfficialReport({ reportType: "BVBG.086.01", asOf: input.asOf, persistRaw: false, timeoutMs: B3_DI1_DOWNLOAD_TIMEOUT_MS, maxAttempts: 1 }),
+    collectB3OfficialReport({ reportType: "BVBG.028.02", asOf: input.asOf, persistRaw: false, timeoutMs: B3_DI1_DOWNLOAD_TIMEOUT_MS, maxAttempts: 1 }),
+  ]);
+  const priceDatasets = [];
+  for (const xml of priceDownload.xmlFiles) {
+    const source = await openB3XmlWithIncrementalHash(xml);
+    const dataset = await parseB3PriceReportXmlStream(source.stream, {
+      sourceId: "B3_PUBLIC_FILES", sourceUrl: priceDownload.officialDownloadUrl, sourceFile: xml.filename, extractedAtUtc: collectedAtUtc,
+      sourceAsOf: input.asOf, sourceHashSha256: xml.sha256, expectedReportType: "BVBG.086.01", includeRow: row => row.symbol.startsWith(input.family),
+    });
+    dataset.lineage.sourceHashSha256 = source.finalizeHash();
+    priceDatasets.push(dataset);
+  }
+  const instrumentDatasets = [];
+  for (const xml of instrumentDownload.xmlFiles) {
+    const source = await openB3XmlWithIncrementalHash(xml);
+    const dataset = await parseB3InstrumentXmlStream(source.stream, {
+      sourceId: "B3_PUBLIC_FILES", sourceUrl: instrumentDownload.officialDownloadUrl, sourceFile: xml.filename, extractedAtUtc: collectedAtUtc,
+      sourceAsOf: input.asOf, sourceHashSha256: xml.sha256,
+    }, { includeRow: row => row.family === input.family });
+    dataset.lineage.sourceHashSha256 = source.finalizeHash();
+    instrumentDatasets.push(dataset);
+  }
+  const market = buildB3MarketDataset(priceDatasets.flatMap(dataset => dataset.dataframe), instrumentDatasets.flatMap(dataset => dataset.instrumentMasterDataframe));
+  return {
+    collectedAtUtc, family: input.family, requestedAsOf: input.asOf,
+    associationStatus: market.associationStatus, issues: market.issues, coverage: market.coverage.find(row => row.family === input.family) ?? null,
+    observations: market.dataframe,
+    retrievalSource: { price: priceDownload.retrievalSource, instrument: instrumentDownload.retrievalSource },
+    lineage: {
+      price: { sourceAsOf: priceDownload.sourceAsOf, officialDownloadUrl: priceDownload.officialDownloadUrl, outerArchive: priceDownload.outerArchive },
+      instrument: { sourceAsOf: instrumentDownload.sourceAsOf, officialDownloadUrl: instrumentDownload.officialDownloadUrl, outerArchive: instrumentDownload.outerArchive },
+    },
+  };
+}
+
 async function persistOfficialManualDataset(input: {
   sourceId: "BCB_PTAX" | "BCB_SGS_11_SELIC" | "BCB_SGS_1178_SELIC_AA252" | "IBGE_IPCA" | "ANBIMA_ETTJ" | "FGV_IGPM";
   raw: unknown;
@@ -406,6 +445,9 @@ export const appRouter = router({
     collectB3DiFutureCurve: publicProcedure
       .input(z.object({ asOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
       .mutation(({ input }) => collectAndBuildB3DiFutureCurve(input)),
+    collectB3MarketObservations: publicProcedure
+      .input(z.object({ family: z.enum(["DI1", "DOL", "WDO", "DDI", "BGI", "CCM", "SOY", "ICF", "ETH", "CNL", "SJC", "GLD"]), asOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
+      .mutation(({ input }) => collectB3MarketObservations(input)),
     readB3NormalizedObservations: publicProcedure
       .input(z.object({
         priceManifestStorageKey: z.string().min(1),

@@ -40,6 +40,7 @@ vi.mock("@/lib/trpc", () => ({
       ipcaMonthly: { useQuery: () => ({ data: undefined }) },
       anbimaEttj: { useQuery: () => ({ data: undefined }) },
       igpmPublishedTable: { useQuery: () => ({ data: undefined, isFetching: false, refetch: vi.fn() }) },
+      collectB3MarketObservations: { useMutation: () => ({ mutateAsync: vi.fn().mockResolvedValue({ observations: [], lineage: { price: { sourceAsOf: "", outerArchive: { sha256: "" } } } }) }) },
     },
     workspace: {
       createScenarioBundle: { useMutation: (options: any) => ({ mutate: (variables: any) => {
