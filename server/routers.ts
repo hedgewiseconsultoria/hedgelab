@@ -1,4 +1,15 @@
 import { z } from "zod";
+
+const b3OptionPremiumMtmGreeksInputSchema = z.object({
+  optionPosition: z.enum(["LONG", "SHORT"]), optionType: z.enum(["CALL", "PUT"]), contracts: z.number().int().positive(),
+  strike: z.number().positive(), underlyingSettlement: z.number().positive(), observedOptionPremium: z.number().nonnegative(),
+  previousOptionPremium: z.number().nonnegative().optional(),
+  valuationDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), calendarId: z.enum(["B3_TRADING_2026", "ANBIMA_BANKING_2026"]),
+  riskFreeRateAnnual: z.number().finite(), underlyingSymbol: z.string().min(1), optionSeriesSymbol: z.string().min(1),
+  premiumLineage: z.object({ sourceId: z.literal("B3_PUBLIC_FILES"), sourceAsOf: z.string().min(1), sourceFile: z.string().min(1), sourceHashSha256: z.string().regex(/^[a-f0-9]{64}$/) }),
+  previousPremiumLineage: z.object({ sourceId: z.literal("B3_PUBLIC_FILES"), sourceAsOf: z.string().min(1), sourceFile: z.string().min(1), sourceHashSha256: z.string().regex(/^[a-f0-9]{64}$/) }).optional(),
+  rateLineage: z.object({ sourceId: z.enum(["B3_DI1_CURVE", "BCB_SELIC"]), sourceAsOf: z.string().min(1), sourceHashSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable() }),
+});
 import { createHash } from "node:crypto";
 import { Readable, Transform } from "node:stream";
 import { systemRouter } from "./_core/systemRouter";
@@ -572,29 +583,32 @@ export const appRouter = router({
       .input(z.object({ optionPosition: z.enum(["LONG", "SHORT"]), optionType: z.enum(["CALL", "PUT"]), contracts: z.number().int().positive(), strikeBrlPerUsd: z.number().positive(), underlyingSettlementBrlPerUsd: z.number().positive(), underlyingSymbol: z.string().min(1), b3Lineage: z.object({ sourceId: z.literal("B3_PUBLIC_FILES"), sourceAsOf: z.string().min(1), sourceFile: z.string().min(1), sourceHashSha256: z.string().regex(/^[a-f0-9]{64}$/) }) }))
       .query(({ input }) => calculateB3DollarOptionIntrinsicSettlement(input)),
     b3DollarOptionPremiumMtmGreeks: publicProcedure
-      .input(z.object({
-        optionPosition: z.enum(["LONG", "SHORT"]), optionType: z.enum(["CALL", "PUT"]), contracts: z.number().int().positive(),
-        strike: z.number().positive(), underlyingSettlement: z.number().positive(), observedOptionPremium: z.number().nonnegative(),
-        previousOptionPremium: z.number().nonnegative().optional(),
-        valuationDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), calendarId: z.enum(["B3_TRADING_2026", "ANBIMA_BANKING_2026"]),
-        riskFreeRateAnnual: z.number().finite(), underlyingSymbol: z.string().min(1), optionSeriesSymbol: z.string().min(1),
-        premiumLineage: z.object({ sourceId: z.literal("B3_PUBLIC_FILES"), sourceAsOf: z.string().min(1), sourceFile: z.string().min(1), sourceHashSha256: z.string().regex(/^[a-f0-9]{64}$/) }),
-        previousPremiumLineage: z.object({ sourceId: z.literal("B3_PUBLIC_FILES"), sourceAsOf: z.string().min(1), sourceFile: z.string().min(1), sourceHashSha256: z.string().regex(/^[a-f0-9]{64}$/) }).optional(),
-        rateLineage: z.object({ sourceId: z.enum(["B3_DI1_CURVE", "BCB_SELIC"]), sourceAsOf: z.string().min(1), sourceHashSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable() }),
-      }))
+      .input(b3OptionPremiumMtmGreeksInputSchema)
       .query(({ input }) => calculateB3OptionPremiumMtmGreeks({ ...input, contractMultiplier: 50_000, unitLabel: "USD" })),
     b3CornOptionIntrinsicSettlement: publicProcedure
       .input(z.object({ optionPosition: z.enum(["LONG", "SHORT"]), optionType: z.enum(["CALL", "PUT"]), contracts: z.number().int().positive(), strikeBrlPerSack: z.number().positive(), underlyingSettlementBrlPerSack: z.number().positive(), underlyingSymbol: z.string().min(1), b3Lineage: z.object({ sourceId: z.literal("B3_PUBLIC_FILES"), sourceAsOf: z.string().min(1), sourceFile: z.string().min(1), sourceHashSha256: z.string().regex(/^[a-f0-9]{64}$/) }) }))
       .query(({ input }) => calculateB3CornOptionIntrinsicSettlement(input)),
+    b3CornOptionPremiumMtmGreeks: publicProcedure
+      .input(b3OptionPremiumMtmGreeksInputSchema)
+      .query(({ input }) => calculateB3OptionPremiumMtmGreeks({ ...input, contractMultiplier: 450, unitLabel: "SACA_60KG" })),
     b3CattleOptionIntrinsicSettlement: publicProcedure
       .input(z.object({ optionPosition: z.enum(["LONG", "SHORT"]), optionType: z.enum(["CALL", "PUT"]), contracts: z.number().int().positive(), strikeBrlPerArroba: z.number().positive(), underlyingSettlementBrlPerArroba: z.number().positive(), underlyingSymbol: z.string().min(1), b3Lineage: z.object({ sourceId: z.literal("B3_PUBLIC_FILES"), sourceAsOf: z.string().min(1), sourceFile: z.string().min(1), sourceHashSha256: z.string().regex(/^[a-f0-9]{64}$/) }) }))
       .query(({ input }) => calculateB3CattleOptionIntrinsicSettlement(input)),
+    b3CattleOptionPremiumMtmGreeks: publicProcedure
+      .input(b3OptionPremiumMtmGreeksInputSchema)
+      .query(({ input }) => calculateB3OptionPremiumMtmGreeks({ ...input, contractMultiplier: 330, unitLabel: "ARROBA" })),
     b3SoyOptionIntrinsicSettlement: publicProcedure
       .input(z.object({ optionPosition: z.enum(["LONG", "SHORT"]), optionType: z.enum(["CALL", "PUT"]), contracts: z.number().int().positive(), strikeUsdPerTon: z.number().positive(), underlyingSettlementUsdPerTon: z.number().positive(), underlyingSymbol: z.string().min(1), b3Lineage: z.object({ sourceId: z.literal("B3_PUBLIC_FILES"), sourceAsOf: z.string().min(1), sourceFile: z.string().min(1), sourceHashSha256: z.string().regex(/^[a-f0-9]{64}$/) }) }))
       .query(({ input }) => calculateB3SoyOptionIntrinsicSettlement(input)),
+    b3SoyOptionPremiumMtmGreeks: publicProcedure
+      .input(b3OptionPremiumMtmGreeksInputSchema)
+      .query(({ input }) => calculateB3OptionPremiumMtmGreeks({ ...input, contractMultiplier: 34, unitLabel: "METRIC_TON" })),
     b3SjcOptionIntrinsicSettlement: publicProcedure
       .input(z.object({ optionPosition: z.enum(["LONG", "SHORT"]), optionType: z.enum(["CALL", "PUT"]), contracts: z.number().int().positive(), strikeUsdPerSack: z.number().positive(), underlyingSettlementUsdPerSack: z.number().positive(), underlyingSymbol: z.string().min(1), b3Lineage: z.object({ sourceId: z.literal("B3_PUBLIC_FILES"), sourceAsOf: z.string().min(1), sourceFile: z.string().min(1), sourceHashSha256: z.string().regex(/^[a-f0-9]{64}$/) }) }))
       .query(({ input }) => calculateB3SjcOptionIntrinsicSettlement(input)),
+    b3SjcOptionPremiumMtmGreeks: publicProcedure
+      .input(b3OptionPremiumMtmGreeksInputSchema)
+      .query(({ input }) => calculateB3OptionPremiumMtmGreeks({ ...input, contractMultiplier: 450, unitLabel: "SACA_60KG" })),
     b3FxFutureDailySettlement: publicProcedure
       .input(z.object({ contract: z.enum(["DOL", "WDO"]), position: z.enum(["LONG_USD", "SHORT_USD"]), contracts: z.number().int().positive(), previousSettlementQuoteBrlPerUsd1000: z.number().finite(), currentSettlementQuoteBrlPerUsd1000: z.number().finite(), previousB3Lineage: z.object({ sourceId: z.literal("B3_PUBLIC_FILES"), sourceAsOf: z.string().min(1), sourceFile: z.string().min(1), sourceHashSha256: z.string().regex(/^[a-f0-9]{64}$/) }), currentB3Lineage: z.object({ sourceId: z.literal("B3_PUBLIC_FILES"), sourceAsOf: z.string().min(1), sourceFile: z.string().min(1), sourceHashSha256: z.string().regex(/^[a-f0-9]{64}$/) }) }))
       .query(({ input }) => calculateB3FxFutureDailySettlement(input)),

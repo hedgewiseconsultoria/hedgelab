@@ -73,4 +73,17 @@ describe("calculateB3OptionPremiumMtmGreeks", () => {
     expect(() => calculateB3OptionPremiumMtmGreeks(baseInput({ contracts: 0 }))).toThrow("contratos");
     expect(() => calculateB3OptionPremiumMtmGreeks(baseInput({ contracts: 1.5 }))).toThrow("contratos");
   });
+
+  it("aplica sinal, multiplicador e sinal de posição corretamente para todos os multiplicadores de contrato usados no roteador (DOL 50.000, CCM/SJC 450, BGI 330, SOY 34)", () => {
+    const multipliers = [50_000, 450, 330, 34];
+    for (const contractMultiplier of multipliers) {
+      const result = calculateB3OptionPremiumMtmGreeks(baseInput({
+        contractMultiplier, contracts: 3,
+        previousOptionPremium: 0.20, observedOptionPremium: 0.24,
+        previousPremiumLineage: { sourceId: "B3_PUBLIC_FILES", sourceAsOf: "2026-08-14", sourceFile: "x.xml", sourceHashSha256: HASH_B },
+      }));
+      expect(result.dailyMtm!.perContract).toBeCloseTo(contractMultiplier * (0.24 - 0.20), 6);
+      expect(result.dailyMtm!.grossResult).toBeCloseTo(3 * contractMultiplier * (0.24 - 0.20), 6);
+    }
+  });
 });
