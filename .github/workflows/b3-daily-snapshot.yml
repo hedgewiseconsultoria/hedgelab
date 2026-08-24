@@ -35,7 +35,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Coletar boletins oficiais da B3
-        run: node scripts/collect-b3-daily-snapshot.mjs
+        run: npx tsx scripts/collect-b3-daily-snapshot.mjs
 
       - name: Commitar snapshot atualizado
         run: |

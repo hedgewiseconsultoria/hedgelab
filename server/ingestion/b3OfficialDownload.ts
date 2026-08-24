@@ -155,7 +155,19 @@ export async function collectB3OfficialReport(input: {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetcher(officialUrl, { signal: controller.signal });
+      const response = await fetcher(officialUrl, {
+        signal: controller.signal,
+        headers: {
+          // A B3 retorna 403 para requisições sem cabeçalhos de navegador (observado em runners de
+          // CI/nuvem). Estes são cabeçalhos padrão de um navegador real acessando a mesma página
+          // pública de download — não contornam nenhuma restrição de acesso, autenticação ou
+          // licenciamento; os arquivos são públicos e gratuitos.
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "Accept": "application/zip,application/octet-stream,*/*",
+          "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+          "Referer": "https://www.b3.com.br/pt_br/market-data-e-indices/servicos-de-dados/market-data/historico/mercado-a-vista/series-historicas/",
+        },
+      });
       if (!response.ok) {
         const error = new Error(`A B3 respondeu ${response.status} ao solicitar ${archiveFilename}.`);
         finalError = error;
