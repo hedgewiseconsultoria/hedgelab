@@ -29,7 +29,14 @@ jobs:
           node-version: "22.13.0"
 
       - name: Habilitar corepack/pnpm
-        run: corepack enable
+        # A versão de corepack empacotada com Node 22.13 não reconhece as chaves de assinatura
+        # mais recentes do registro do npm ("Cannot find matching keyid"), o que quebra a
+        # instalação do pnpm em runners do GitHub Actions. Atualizar o corepack antes de
+        # habilitá-lo resolve — não é um problema deste projeto, é uma incompatibilidade
+        # conhecida entre versões antigas do corepack e o registro do npm.
+        run: |
+          npm install -g corepack@latest
+          corepack enable
 
       - name: Instalar dependências
         run: pnpm install --frozen-lockfile

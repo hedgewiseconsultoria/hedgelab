@@ -2,7 +2,7 @@ services:
   - type: web
     name: hedge-lab
     env: node
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    buildCommand: npm install -g corepack@latest && corepack enable && pnpm install --frozen-lockfile && pnpm build
     startCommand: pnpm start
     healthCheckPath: /healthz
     envVars:
