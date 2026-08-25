@@ -11,6 +11,8 @@ O projeto também dependia de snapshots publicados pelo GitHub Actions, mas o ZI
 | Arquivo | Alteração |
 |---|---|
 | `server/routers.ts` | A rota `collectB3MarketObservations` passou a persistir CSVs e manifestos normalizados de preço e instrumento, retornando seus hashes e chaves de armazenamento para a seleção canônica. |
+| `server/domain/b3MarketDataset.ts` | A associação PriceReport–InstrumentReport usa o identificador técnico e, quando ele diverge entre os boletins, faz fallback pelo símbolo oficial `TckrSymb`. Isso cobre futuros e opções de dólar, DI1 e commodities. |
+| `server/domain/b3MarketDataset.test.ts` | Incluído teste explícito para a divergência de identificadores entre os boletins. |
 | `client/src/components/HedgeDashboard.tsx` | O vínculo passou a selecionar `OPTION` para alternativas de opções e `FUTURE` para futuros; tenta primeiro o vencimento exato e depois o mesmo mês; publica a seleção em `b3_observation_link_dataframe`. |
 | `server/ingestion/b3OfficialDownload.ts` | Em produção, o download online direto da B3 fica desabilitado por padrão. O caminho interativo usa o snapshot gratuito do GitHub; o download ao vivo fica reservado ao workflow diário ou à habilitação explícita de `B3_ALLOW_LIVE_FETCH=true`. |
 | `server/ingestion/b3SnapshotCache.ts` | Mantida a validação de ZIP e SHA-256, leitura preferencial via `raw.githubusercontent.com` e timeout ampliado para arquivos B3 de dezenas de MB. |
@@ -20,7 +22,7 @@ O projeto também dependia de snapshots publicados pelo GitHub Actions, mas o ZI
 
 ## Validação
 
-A validação foi concluída com `pnpm check`, 102 arquivos de teste aprovados e 299 testes aprovados. O fluxo PTAX, o cache B3 e o downloader oficial foram validados especificamente após as últimas alterações. O build apresentou apenas os avisos já existentes sobre variáveis de analytics não definidas e tamanho de chunk.
+A validação foi concluída com `pnpm check`, 102 arquivos de teste aprovados e 300 testes aprovados, incluindo a associação por símbolo e a integração com XMLs oficiais. O fluxo PTAX, o cache B3 e o downloader oficial foram validados especificamente após as últimas alterações. O build apresentou apenas os avisos já existentes sobre variáveis de analytics não definidas e tamanho de chunk.
 
 ## Deploy
 

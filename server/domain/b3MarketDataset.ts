@@ -13,6 +13,12 @@ function candidateFamilyFromSymbol(symbol: string): SupportedB3Family | null {
 
 export function buildB3MarketDataset(priceRows: B3PriceRow[], instrumentRows: InstrumentMasterRow[]): B3MarketDataset {
   const instrumentById = new Map(instrumentRows.map(row => [row.instrument_id, row]));
+  // Alguns boletins oficiais usam identificadores técnicos diferentes entre preço e cadastro.
+  // O símbolo TckrSymb é a chave pública comum e deve ser usado como fallback auditável.
+  const instrumentBySymbol = new Map<string, InstrumentMasterRow>();
+  for (const row of instrumentRows) {
+    if (row.symbol && !instrumentBySymbol.has(row.symbol)) instrumentBySymbol.set(row.symbol, row);
+  }
   const rows: B3MarketObservationRow[] = [];
   const issues: B3MarketDataset["issues"] = [];
   const missingInstrumentIds = new Set<string>();
@@ -34,12 +40,12 @@ export function buildB3MarketDataset(priceRows: B3PriceRow[], instrumentRows: In
 
   for (const price of priceRows) {
     if (associationStatus === "blocked_asof_mismatch") continue;
-    const instrument = instrumentById.get(price.instrumentId);
+    const instrument = instrumentById.get(price.instrumentId) ?? instrumentBySymbol.get(price.symbol);
     if (!instrument) {
       const candidateFamily = candidateFamilyFromSymbol(price.symbol);
       if (candidateFamily && !missingInstrumentIds.has(price.instrumentId)) {
         missingInstrumentIds.add(price.instrumentId);
-        issues.push({ code: "PRICE_INSTRUMENT_NOT_IN_MASTER", severity: "error", instrumentId: price.instrumentId, family: candidateFamily, message: `Observação de preço ${price.symbol} sem correspondência no InstrumentReport fornecido.` });
+        issues.push({ code: "PRICE_INSTRUMENT_NOT_IN_MASTER", severity: "error", instrumentId: price.instrumentId, family: candidateFamily, message: `Observação de preço ${price.symbol} sem correspondência por identificador ou símbolo no InstrumentReport fornecido.` });
       }
       continue;
     }

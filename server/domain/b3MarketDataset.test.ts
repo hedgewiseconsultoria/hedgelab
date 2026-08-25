@@ -13,7 +13,13 @@ describe("DataFrame de mercado B3 associado ao cadastro", () => {
     expect(dataset.coverage.find(item => item.family === "DI1")).toMatchObject({ records: 1, futureRecords: 1, recordsWithAdjustedQuote: 1 });
   });
 
-  it("não classifica por ticker quando o identificador não está no InstrumentReport", () => {
+  it("associa por símbolo quando os identificadores técnicos dos boletins divergem", () => {
+    const dataset = buildB3MarketDataset([{ ...price, instrumentId: "price-id", symbol: "DI1Z28" }], [{ ...instrument, instrument_id: "instrument-id" }]);
+    expect(dataset.dataframe).toHaveLength(1);
+    expect(dataset.dataframe[0]).toMatchObject({ symbol: "DI1Z28", family: "DI1", instrumentType: "FUTURE", maturity: "2028-12-01" });
+  });
+
+  it("não classifica por ticker quando o identificador e o símbolo não estão no InstrumentReport", () => {
     const dataset = buildB3MarketDataset([{ ...price, instrumentId: "ausente", symbol: "DOLX26" }], []);
     expect(dataset.dataframe).toHaveLength(0);
     expect(dataset.issues.some(issue => issue.code === "PRICE_INSTRUMENT_NOT_IN_MASTER")).toBe(true);
