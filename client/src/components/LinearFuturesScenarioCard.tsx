@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { Calculator, Loader2 } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import type { CalculationRow, ScenarioRow } from "../../../server/domain/scenarioBundle";
+import type { CanonicalEconomicSituationRow, CanonicalHedgeAlternativeRow } from "../../../server/domain/dataframes";
 
 const instruments = ["DOL", "WDO", "BGI", "CCM", "SOY", "SJC"] as const;
 export type LinearFuturesScenarioSnapshot = { scenario: ScenarioRow; calculations: CalculationRow[] };
@@ -15,25 +16,36 @@ function today() { return new Date().toISOString().slice(0, 10); }
 function futureDate() { const date = new Date(); date.setDate(date.getDate() + 30); return date.toISOString().slice(0, 10); }
 
 /** Cenário educacional de resultado bruto linear para câmbio e commodities; não é cotação, curva ou ajuste B3. */
-export default function LinearFuturesScenarioCard({ onSnapshot }: { onSnapshot?: (snapshot: LinearFuturesScenarioSnapshot) => void }) {
-  const [instrumentLabel, setInstrumentLabel] = useState<(typeof instruments)[number]>("DOL");
-  const [economicDirection, setEconomicDirection] = useState<"BUY" | "SELL">("BUY");
-  const [hedgePosition, setHedgePosition] = useState<"LONG" | "SHORT">("LONG");
-  const [exposureQuantity, setExposureQuantity] = useState("100000");
-  const [hedgeContracts, setHedgeContracts] = useState("2");
-  const [contractUnitQuantity, setContractUnitQuantity] = useState("50000");
-  const [targetCoveragePct, setTargetCoveragePct] = useState("100");
-  const [horizonDate, setHorizonDate] = useState(futureDate);
-  const [initialPrice, setInitialPrice] = useState("5.10");
+type Props = {
+  onSnapshot?: (snapshot: LinearFuturesScenarioSnapshot) => void;
+  situation?: CanonicalEconomicSituationRow | null;
+  alternative?: CanonicalHedgeAlternativeRow | null;
+  observedPrice?: number | null;
+  observedSourceAsOf?: string | null;
+  observedSourceFile?: string | null;
+  observedSourceHashSha256?: string | null;
+  coveragePct?: number;
+};
+
+export default function LinearFuturesScenarioCard({ onSnapshot, situation, alternative, observedPrice = null, observedSourceAsOf = null, observedSourceFile = null, observedSourceHashSha256 = null, coveragePct = 100 }: Props) {
+  const [instrumentLabel, setInstrumentLabel] = useState<(typeof instruments)[number]>((alternative?.alternative_kind === "B3_WDO_FUTURE" ? "WDO" : alternative?.alternative_kind === "B3_COMMODITY_FUTURE" ? (situation?.commodity_reference ?? "DOL") : "DOL") as (typeof instruments)[number]);
+  const [economicDirection, setEconomicDirection] = useState<"BUY" | "SELL">(alternative?.hedge_direction === "SELL" ? "SELL" : "BUY");
+  const [hedgePosition, setHedgePosition] = useState<"LONG" | "SHORT">(alternative?.hedge_direction === "SELL" ? "SHORT" : "LONG");
+  const [exposureQuantity, setExposureQuantity] = useState(String(situation?.declared_quantity ?? 100000));
+  const [hedgeContracts, setHedgeContracts] = useState("0");
+  const [contractUnitQuantity, setContractUnitQuantity] = useState(alternative?.alternative_kind === "B3_WDO_FUTURE" ? "10000" : "50000");
+  const [targetCoveragePct, setTargetCoveragePct] = useState(String(coveragePct));
+  const [horizonDate, setHorizonDate] = useState(situation?.horizon_date ?? futureDate);
+  const [initialPrice, setInitialPrice] = useState(observedPrice && observedPrice > 0 ? String(observedPrice) : "5.10");
   const [scenarioPrice, setScenarioPrice] = useState("5.30");
   const [quotationUnit, setQuotationUnit] = useState("BRL por USD");
   const [scenarioAsOf, setScenarioAsOf] = useState(today);
   const input = useMemo(() => ({
     scenarioId: "cenario-linear-local", instrumentLabel, economicDirection, hedgePosition,
     exposureQuantity: Number(exposureQuantity), hedgeContracts: Number(hedgeContracts), contractUnitQuantity: Number(contractUnitQuantity), initialPrice: Number(initialPrice), scenarioPrice: Number(scenarioPrice), quotationUnit,
-    dataMode: "USER_PARAMETERIZED_SCENARIO" as const,
-    lineage: { sourceId: "USER_PARAMETERIZED_SCENARIO" as const, sourceFile: "cenario-parametrizado-na-interface", sourceHashSha256: null, sourceAsOf: scenarioAsOf || null, createdAtUtc: new Date().toISOString() },
-  }), [contractUnitQuantity, economicDirection, exposureQuantity, hedgeContracts, hedgePosition, initialPrice, instrumentLabel, quotationUnit, scenarioAsOf, scenarioPrice]);
+    dataMode: observedPrice && observedPrice > 0 && observedSourceHashSha256 ? "B3_OBSERVED_PRICES" as const : "USER_PARAMETERIZED_SCENARIO" as const,
+    lineage: { sourceId: observedPrice && observedPrice > 0 && observedSourceHashSha256 ? "B3_PUBLIC_FILES" as const : "USER_PARAMETERIZED_SCENARIO" as const, sourceFile: observedSourceFile ?? "cenario-parametrizado-na-interface", sourceHashSha256: observedSourceHashSha256, sourceAsOf: observedSourceAsOf ?? (scenarioAsOf || null), createdAtUtc: new Date().toISOString() },
+  }), [contractUnitQuantity, economicDirection, exposureQuantity, hedgeContracts, hedgePosition, initialPrice, instrumentLabel, observedPrice, observedSourceAsOf, observedSourceFile, observedSourceHashSha256, quotationUnit, scenarioAsOf, scenarioPrice]);
   const targetCoverage = Number(targetCoveragePct);
   const scenario = trpc.hedge.linearFuturesScenario.useQuery(input, { enabled: false, retry: false });
   const canCalculate = [input.exposureQuantity, input.hedgeContracts, input.contractUnitQuantity, input.initialPrice, input.scenarioPrice, targetCoverage].every(Number.isFinite) && input.exposureQuantity > 0 && input.hedgeContracts >= 0 && input.contractUnitQuantity > 0 && targetCoverage >= 0 && targetCoverage <= 100 && quotationUnit.trim().length > 0 && Boolean(scenarioAsOf) && Boolean(horizonDate);

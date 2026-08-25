@@ -33,7 +33,7 @@ import { parseB3PriceReportXmlStream } from "./ingestion/b3PriceReportParser";
 import { parseB3InstrumentXmlStream } from "./ingestion/b3InstrumentParser";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { dataframeToCsv, sha256Text } from "./domain/dataframeArtifact";
-import { buildB3MarketDataset } from "./domain/b3MarketDataset";
+import { buildB3MarketDataset, selectCompatibleB3Contracts } from "./domain/b3MarketDataset";
 import { buildDiFutureCurveVertices } from "./domain/diFutureCurve";
 import { diagnoseHedgeAlternatives } from "./domain/hedgeAlternatives";
 import { materializeCanonicalHedgeDataframes } from "./domain/canonicalHedgeDataframes";
@@ -255,9 +255,13 @@ async function collectB3MarketObservations(input: { family: import("./domain/dat
     collectB3OfficialReport({ reportType: "BVBG.086.01", asOf: input.asOf, persistRaw: false, timeoutMs: B3_DI1_DOWNLOAD_TIMEOUT_MS, maxAttempts: 1 }),
     collectB3OfficialReport({ reportType: "BVBG.028.02", asOf: input.asOf, persistRaw: false, timeoutMs: B3_DI1_DOWNLOAD_TIMEOUT_MS, maxAttempts: 1 }),
   ]);
+  // Os ZIPs oficiais podem conter várias mensagens XML com a mesma cobertura completa de instrumentos.
+  // Para o vínculo interativo, um XML completo por boletim é suficiente e evita varrer >1 GB por clique.
+  const priceXmlFiles = priceDownload.xmlFiles.slice(0, 1);
+  const instrumentXmlFiles = instrumentDownload.xmlFiles.slice(0, 1);
   const priceDatasets = [];
   const priceNormalizations = [];
-  for (const xml of priceDownload.xmlFiles) {
+  for (const xml of priceXmlFiles) {
     const source = await openB3XmlWithIncrementalHash(xml);
     const dataset = await parseB3PriceReportXmlStream(source.stream, {
       sourceId: "B3_PUBLIC_FILES", sourceUrl: priceDownload.officialDownloadUrl, sourceFile: xml.filename, extractedAtUtc: collectedAtUtc,
@@ -275,7 +279,7 @@ async function collectB3MarketObservations(input: { family: import("./domain/dat
   }
   const instrumentDatasets = [];
   const instrumentNormalizations = [];
-  for (const xml of instrumentDownload.xmlFiles) {
+  for (const xml of instrumentXmlFiles) {
     const source = await openB3XmlWithIncrementalHash(xml);
     const dataset = await parseB3InstrumentXmlStream(source.stream, {
       sourceId: "B3_PUBLIC_FILES", sourceUrl: instrumentDownload.officialDownloadUrl, sourceFile: xml.filename, extractedAtUtc: collectedAtUtc,
@@ -304,6 +308,16 @@ async function collectB3MarketObservations(input: { family: import("./domain/dat
     normalizations: { price: priceNormalizations, instrument: instrumentNormalizations },
   };
 }
+async function collectCompatibleB3ContractCatalog(input: { asOf: string; requests: Array<{ family: import("./domain/dataframes").SupportedB3Family; horizonDate: string; instrumentType?: "FUTURE" | "OPTION" }> }) {
+  const catalog = [];
+  for (const request of input.requests) {
+    const result = await collectB3MarketObservations({ family: request.family, asOf: input.asOf });
+    const matches = selectCompatibleB3Contracts(result.observations, request.family, request.horizonDate, request.instrumentType).slice(0, 24);
+    catalog.push({ ...request, requestedAsOf: input.asOf, associationStatus: result.associationStatus, retrievalSource: result.retrievalSource, lineage: result.lineage, coverage: result.coverage, observations: matches, normalizations: result.normalizations, issues: result.issues });
+  }
+  return { asOf: input.asOf, catalog };
+}
+
 async function persistOfficialManualDataset(input: {
   sourceId: "BCB_PTAX" | "BCB_SGS_11_SELIC" | "BCB_SGS_1178_SELIC_AA252" | "IBGE_IPCA" | "ANBIMA_ETTJ" | "FGV_IGPM";
   raw: unknown;
@@ -416,7 +430,9 @@ export const appRouter = router({
               : await collectB3OfficialPriceReport({ reportType, asOf: input.asOf, persistRaw: input.persistRaw, ...downloadPolicy });
             const normalizations = [];
             if (input.normalize) {
-              for (const xml of download.xmlFiles) {
+              // Cada boletim pode conter mensagens XML repetidas com a mesma cobertura completa.
+              // Pré-carregamos apenas uma por relatório; o arquivo bruto completo permanece preservado no snapshot.
+              for (const xml of download.xmlFiles.slice(0, 1)) {
                 normalizations.push(reportType === "BVBG.028.02"
                   ? await normalizeCollectedB3InstrumentXml({ asOf: input.asOf, officialDownloadUrl: download.officialDownloadUrl, collectedAtUtc, xml })
                   : await normalizeCollectedB3PriceXml({ reportType, asOf: input.asOf, officialDownloadUrl: download.officialDownloadUrl, collectedAtUtc, xml }));
@@ -582,6 +598,12 @@ export const appRouter = router({
         lineage: z.object({ sourceId: z.enum(["USER_PARAMETERIZED_SCENARIO", "B3_PUBLIC_FILES"]), sourceFile: z.string().min(1), sourceHashSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(), sourceAsOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(), createdAtUtc: z.string().datetime() }),
       }))
       .query(({ input }) => calculateLinearFuturesScenario(input)),
+    b3CompatibleContractCatalog: publicProcedure
+      .input(z.object({
+        asOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        requests: z.array(z.object({ family: z.enum(["DI1", "DOL", "WDO", "BGI", "ICF", "CNL", "ETH", "CCM", "GLD", "SOY", "SJC"]), horizonDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), instrumentType: z.enum(["FUTURE", "OPTION"]).optional() })).min(1).max(12),
+      }))
+      .query(({ input }) => collectCompatibleB3ContractCatalog(input)),
     diagnoseAlternatives: publicProcedure
       .input(z.object({
         exposureId: z.string().min(1), kind: z.enum(["USD_PAYABLE", "USD_RECEIVABLE", "CDI_LINKED_DEBT", "COMMODITY_PURCHASE", "COMMODITY_SALE"]),

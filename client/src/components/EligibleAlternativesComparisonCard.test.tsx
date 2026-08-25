@@ -21,7 +21,7 @@ describe("EligibleAlternativesComparisonCard", () => {
     />);
     expect(screen.getByText("Futuro DOL")).toBeTruthy();
     expect(screen.getByText(/DOL · DOLU26/)).toBeTruthy();
-    expect(screen.getByText(/venc. 2026-09-01/)).toBeTruthy();
+    expect(screen.getAllByText(/venc. 2026-09-01/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Evidência atual")).toBeTruthy();
     expect(screen.getByText(/100%/)).toBeTruthy();
     expect(screen.getByText(/Cobertura e cenário/)).toBeTruthy();

@@ -82,3 +82,31 @@ export function buildB3MarketDataset(priceRows: B3PriceRow[], instrumentRows: In
   });
   return { dataframe: rows, coverage, issues, associationStatus };
 }
+
+/**
+ * Seleciona contratos compatíveis com o horizonte econômico informado.
+ * A prioridade é: vencimento exato, mesmo mês, primeiro vencimento posterior
+ * e, somente como último recurso, vencimento anterior mais próximo. A função
+ * nunca inventa uma série: retorna apenas observações presentes no boletim.
+ */
+export function selectCompatibleB3Contracts(
+  rows: B3MarketObservationRow[],
+  family: SupportedB3Family,
+  horizonDate: string,
+  instrumentType?: "FUTURE" | "OPTION",
+): B3MarketObservationRow[] {
+  const candidates = rows
+    .filter(row => row.family === family && (!instrumentType || row.instrumentType === instrumentType) && Boolean(row.maturity))
+    .filter(row => row.lastPrice !== null || row.tradeAveragePrice !== null || row.adjustedQuote !== null)
+    .sort((left, right) => String(left.maturity).localeCompare(String(right.maturity)) || left.symbol.localeCompare(right.symbol));
+  if (!candidates.length) return [];
+
+  const exact = candidates.filter(row => row.maturity === horizonDate);
+  if (exact.length) return exact;
+  const month = horizonDate.slice(0, 7);
+  const sameMonth = candidates.filter(row => row.maturity?.slice(0, 7) === month);
+  if (sameMonth.length) return sameMonth;
+
+  const forward = candidates.filter(row => String(row.maturity) >= horizonDate);
+  return forward.length ? forward : candidates.slice(-1);
+}

@@ -38,3 +38,22 @@ describe("DataFrame de mercado B3 associado ao cadastro", () => {
     expect(dataset.dataframe[0]).toMatchObject({ optionType: "CALL", exercisePrice: 5.2, underlyingInstrumentId: "100" });
   });
 });
+
+describe("seleção de contratos por horizonte", () => {
+  const observation = (symbol: string, maturity: string) => ({
+    symbol, maturity, instrumentType: "FUTURE", family: "WDO", lastPrice: 5.1, tradeAveragePrice: null, adjustedQuote: 5.1,
+  } as any);
+
+  it("prioriza contratos do mesmo mês do horizonte", async () => {
+    const { selectCompatibleB3Contracts } = await import("./b3MarketDataset");
+    const result = selectCompatibleB3Contracts([observation("WDOX26", "2026-10-01"), observation("WDOX26", "2026-09-01")], "WDO", "2026-09-22");
+    expect(result[0]?.maturity).toBe("2026-09-01");
+  });
+
+  it("seleciona o primeiro vencimento posterior quando não há contrato no mês", async () => {
+    const { selectCompatibleB3Contracts } = await import("./b3MarketDataset");
+    const result = selectCompatibleB3Contracts([observation("WDOX26", "2026-11-01"), observation("WDOX26", "2026-12-01")], "WDO", "2026-10-15");
+    expect(result[0]?.maturity).toBe("2026-11-01");
+  });
+});
+

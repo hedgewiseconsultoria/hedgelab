@@ -18,11 +18,16 @@ O projeto também dependia de snapshots publicados pelo GitHub Actions, mas o ZI
 | `server/ingestion/b3SnapshotCache.ts` | Mantida a validação de ZIP e SHA-256, leitura preferencial via `raw.githubusercontent.com` e timeout ampliado para arquivos B3 de dezenas de MB. |
 | `server/ingestion/b3OfficialDownload.ts` | O timeout ampliado do cache é propagado também para a coleta automática no Render; arquivos parciais nunca são aceitos. |
 | `client/src/components/B3ManualCollectionCard.tsx` | A atualização automática passou a carregar somente metadados, hashes e linhagem; a normalização pesada ficou sob demanda no vínculo da operação, reduzindo o tempo de abertura da Base técnica. |
+| `client/src/components/EligibleAlternativesComparisonCard.tsx` | Cada alternativa passa a exibir o ativo/família e tipo B3 compatíveis dentro de “Cobertura e cenário”, distinguindo ativo elegível de série efetivamente vinculada. |
+| `client/src/components/HedgeDashboard.tsx` | Ao selecionar uma alternativa B3, o vínculo da série é iniciado automaticamente; a requisição tem limite de 45 segundos e termina com estado explícito em caso de indisponibilidade. |
 | `server/ingestion/bcbPtax.ts` | Mantida a consulta oficial `CotacaoDolarDia`, com tentativa auditável dos cinco dias úteis anteriores quando a data solicitada não tem publicação. A linhagem conserva a data efetiva da cotação e nenhuma taxa é inventada. |
+| `server/domain/b3MarketDataset.ts` | Adicionada seleção de contratos por horizonte: vencimento exato, mesmo mês, primeiro posterior e último anterior como último recurso, sempre apenas entre observações com preço/ajuste oficial. |
+| `client/src/components/LinearFuturesScenarioCard.tsx` | O cenário recebe exposição, direção, vencimento, percentual e preço/linhagem da observação B3 selecionada, em vez de iniciar desconectado com parâmetros padrão. |
+| `client/src/components/HedgeAlternativeDecisionMatrixCard.tsx` | Criada matriz da mesma exposição por alternativa, mostrando contrato, evidência, estado de cálculo e bloqueios sem confundir ausência de dado com resultado. |
 
 ## Validação
 
-A validação foi concluída com `pnpm check`, 102 arquivos de teste aprovados e 300 testes aprovados, incluindo a associação por símbolo e a integração com XMLs oficiais. O fluxo PTAX, o cache B3 e o downloader oficial foram validados especificamente após as últimas alterações. O build apresentou apenas os avisos já existentes sobre variáveis de analytics não definidas e tamanho de chunk.
+A validação foi concluída com `pnpm check`, 102 arquivos de teste aprovados e 302 testes aprovados, incluindo associação por símbolo, seleção por horizonte, integração com XMLs oficiais, passagem da exposição ao simulador e matriz comparativa. O fluxo PTAX, o cache B3 e o downloader oficial foram validados especificamente após as últimas alterações. O build apresentou apenas os avisos já existentes sobre variáveis de analytics não definidas e tamanho de chunk.
 
 ## Deploy
 
