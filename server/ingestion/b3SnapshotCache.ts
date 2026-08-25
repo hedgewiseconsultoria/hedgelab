@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import type { B3OfficialReportType } from "./b3OfficialDownload";
+import type { B3MarketObservationRow, SupportedB3Family } from "../domain/dataframes";
 
 /**
  * Cache read-through para os pacotes ZIP oficiais da B3.
@@ -20,6 +23,20 @@ export type B3SnapshotCacheResult = {
   buffer: Buffer;
   source: "github_snapshot_cache";
   snapshotPath: string;
+};
+
+export type B3ContractCatalogSnapshot = {
+  schemaVersion: "1.0.0";
+  asOf: string;
+  generatedAtUtc: string;
+  associationStatus: "valid" | "blocked_asof_mismatch";
+  rows: B3MarketObservationRow[];
+  coverage: Array<{ family: SupportedB3Family; records: number; futureRecords: number; optionRecords: number; recordsWithTradePrice: number; recordsWithAdjustedQuote: number }>;
+  issues: Array<{ code: string; severity: string; instrumentId: string | null; family: SupportedB3Family | null; message: string }>;
+  lineage: {
+    price: { sourceAsOf: string; officialDownloadUrl: string; outerArchive: { filename: string; bytes: number; sha256: string }; xml: { sourceFile: string; sha256: string } };
+    instrument: { sourceAsOf: string; officialDownloadUrl: string; outerArchive: { filename: string; bytes: number; sha256: string }; xml: { sourceFile: string; sha256: string } };
+  };
 };
 
 type CacheConfig = {
@@ -58,15 +75,68 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
  * divergente, erro de rede) — nunca lança exceção e nunca inventa bytes: o chamador simplesmente
  * segue para o download ao vivo, exatamente como fazia antes deste módulo existir.
  */
+export async function readB3ContractCatalogSnapshot(input: { asOf: string; timeoutMs?: number }): Promise<B3ContractCatalogSnapshot | null> {
+  const localRoot = process.env.B3_SNAPSHOT_CACHE_ROOT?.trim();
+  const localPath = localRoot ? resolve(localRoot, `b3-snapshots/${input.asOf}/catalog.json`) : null;
+  const localHashPath = localPath ? `${localPath}.sha256` : null;
+  if (localPath && localHashPath) {
+    try {
+      const bytes = await readFile(localPath);
+      const expectedHash = (await readFile(localHashPath, "utf8")).trim().split(/\s+/)[0];
+      const actualHash = createHash("sha256").update(bytes).digest("hex");
+      if (!expectedHash || expectedHash !== actualHash) return null;
+      const parsed = JSON.parse(bytes.toString("utf8")) as B3ContractCatalogSnapshot;
+      if (parsed.schemaVersion !== "1.0.0" || parsed.asOf !== input.asOf || !Array.isArray(parsed.rows) || !parsed.lineage?.price || !parsed.lineage?.instrument) return null;
+      return parsed;
+    } catch {
+      // O workflow ainda pode estar em processo de baixar ou gerar o índice local.
+    }
+  }
+  const config = readCacheConfig();
+  if (!config) return null;
+  const timeoutMs = input.timeoutMs ?? 10_000;
+  const ref = encodeURIComponent(config.branch);
+  const rawBase = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${ref}`;
+  const path = `b3-snapshots/${input.asOf}/catalog.json`;
+  try {
+    const requestHeaders = { "User-Agent": "hedge-lab-b3-catalog-cache", Accept: "application/json" };
+    const jsonResponse = await fetchWithTimeout(`${rawBase}/${path}?ref=${ref}`, { headers: requestHeaders }, timeoutMs);
+    const hashResponse = await fetchWithTimeout(`${rawBase}/${path}.sha256?ref=${ref}`, { headers: requestHeaders }, timeoutMs);
+    if (!jsonResponse.ok || !hashResponse.ok) return null;
+    const bytes = Buffer.from(await jsonResponse.arrayBuffer());
+    const expectedHash = (await hashResponse.text()).trim().split(/\s+/)[0];
+    const actualHash = createHash("sha256").update(bytes).digest("hex");
+    if (!expectedHash || expectedHash !== actualHash) return null;
+    const parsed = JSON.parse(bytes.toString("utf8")) as B3ContractCatalogSnapshot;
+    if (parsed.schemaVersion !== "1.0.0" || parsed.asOf !== input.asOf || !Array.isArray(parsed.rows) || !parsed.lineage?.price || !parsed.lineage?.instrument) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 export async function readB3ArchiveFromSnapshotCache(input: {
   reportType: B3OfficialReportType;
   asOf: string;
   archiveFilename: string;
   timeoutMs?: number;
 }): Promise<B3SnapshotCacheResult | null> {
+  const localRoot = process.env.B3_SNAPSHOT_CACHE_ROOT?.trim();
+  const path = snapshotPathFor(input.reportType, input.asOf, input.archiveFilename);
+  if (localRoot) {
+    try {
+      const archivePath = resolve(localRoot, path);
+      const sidecarPath = `${archivePath}.sha256`;
+      const buffer = await readFile(archivePath);
+      const expectedHash = (await readFile(sidecarPath, "utf8")).trim().split(/\s+/)[0];
+      const actualHash = createHash("sha256").update(buffer).digest("hex");
+      if (buffer.length > 0 && buffer.subarray(0, 2).toString("utf8") === "PK" && expectedHash && expectedHash === actualHash) return { buffer, source: "github_snapshot_cache", snapshotPath: path };
+    } catch {
+      // O workflow pode não ter salvo um dos boletins; nesse caso o caminho remoto continua disponível.
+    }
+  }
   const config = readCacheConfig();
   if (!config) return null;
-  const path = snapshotPathFor(input.reportType, input.asOf, input.archiveFilename);
   // Os snapshots oficiais podem ter dezenas de MB; 10s aborta o download no Render antes do SHA-256.
   const timeoutMs = input.timeoutMs ?? 60_000;
   const headers: Record<string, string> = { Accept: "application/vnd.github.raw+json", "User-Agent": "hedge-lab-b3-snapshot-cache" };

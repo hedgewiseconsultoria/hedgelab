@@ -44,6 +44,15 @@ jobs:
       - name: Coletar boletins oficiais da B3
         run: npx tsx scripts/collect-b3-daily-snapshot.mjs
 
+      - name: Gerar índice compacto de contratos B3
+        run: |
+          set -euo pipefail
+          for snapshot_date in $(find b3-snapshots -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | grep -E '^20[0-9]{2}-[0-9]{2}-[0-9]{2}$' | sort); do
+            if test -f "b3-snapshots/${snapshot_date}/BVBG.086.01/PR${snapshot_date:2:2}${snapshot_date:5:2}${snapshot_date:8:2}.zip" && test -f "b3-snapshots/${snapshot_date}/BVBG.028.02/IN${snapshot_date:2:2}${snapshot_date:5:2}${snapshot_date:8:2}.zip"; then
+              B3_SNAPSHOT_CACHE_ROOT=. npx tsx scripts/build-b3-catalog-index.ts "${snapshot_date}"
+            fi
+          done
+
       - name: Commitar e publicar snapshot atualizado
         run: |
           set -euo pipefail

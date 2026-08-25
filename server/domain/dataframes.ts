@@ -408,18 +408,18 @@ export type CanonicalB3ObservationLinkRow = {
     source_file: string;
     source_asof: string;
     source_hash_sha256: string;
-    normalized_csv_storage_key: string;
-    normalized_csv_sha256: string;
-    normalized_manifest_storage_key: string;
+    normalized_csv_storage_key: string | null;
+    normalized_csv_sha256: string | null;
+    normalized_manifest_storage_key: string | null;
   };
   instrument_source: {
     source_url: string;
     source_file: string;
     source_asof: string;
     source_hash_sha256: string;
-    normalized_csv_storage_key: string;
-    normalized_csv_sha256: string;
-    normalized_manifest_storage_key: string;
+    normalized_csv_storage_key: string | null;
+    normalized_csv_sha256: string | null;
+    normalized_manifest_storage_key: string | null;
   };
   association_status: "valid_same_asof";
   selected_at_utc: string;

@@ -61,6 +61,7 @@ import { createExposureCsvArtifact, readExposureCsvArtifact, type ExposureCsvMan
 import { prepareParquetSessionImport } from "@/lib/parquetUpload";
 import { appendSimulationHistory, loadSimulationHistory, type LocalSimulationVersion } from "@/lib/simulationHistory";
 import { trpc } from "@/lib/trpc";
+import { skipToken } from "@tanstack/react-query";
 import { selectCompatibleB3Contracts } from "../../../server/domain/b3MarketDataset";
 import {
   AlertTriangle,
@@ -225,8 +226,6 @@ export default function HedgeDashboard() {
   const [diCurveReference, setDiCurveReference] = useState<DiFutureCurveDataset | null>(null);
   const [commodityMarketLink, setCommodityMarketLink] = useState<{ alternativeId: string | null; status: CommodityMarketLinkStatus; observation: CommodityMarketLinkObservation | null }>({ alternativeId: null, status: "idle", observation: null });
   const collectB3MarketObservations = trpc.marketData.collectB3MarketObservations.useMutation();
-  const [b3ContractCatalog, setB3ContractCatalog] = useState<Array<{ family: string; horizonDate: string; instrumentType?: string; observations: Array<{ symbol: string; maturity: string | null; instrumentType: string; lastPrice: number | null; adjustedQuote: number | null }> }>>([]);
-  const catalogRequestedRef = useRef("");
   const catalogRequests = useMemo(() => {
     const situations = canonicalDataframes.economic_situation_dataframe;
     const unique = new Map<string, { family: "DI1" | "DOL" | "WDO" | "BGI" | "ICF" | "CNL" | "ETH" | "CCM" | "GLD" | "SOY" | "SJC"; horizonDate: string; instrumentType?: "FUTURE" | "OPTION" }>();
@@ -242,19 +241,11 @@ export default function HedgeDashboard() {
     }
     return Array.from(unique.values());
   }, [canonicalDataframes.economic_situation_dataframe, canonicalDataframes.hedge_alternative_dataframe]);
-  useEffect(() => {
-    const key = JSON.stringify(catalogRequests);
-    if (!catalogRequests.length || catalogRequestedRef.current === key) return;
-    catalogRequestedRef.current = key;
-    void Promise.all(catalogRequests.map(async request => {
-      try {
-        const result = await collectB3MarketObservations.mutateAsync({ family: request.family, asOf: lastWeekday() });
-        return { ...request, observations: selectCompatibleB3Contracts(result.observations, request.family, request.horizonDate, request.instrumentType as "FUTURE" | "OPTION" | undefined).slice(0, 24) };
-      } catch {
-        return { ...request, observations: [] };
-      }
-    })).then(setB3ContractCatalog);
-  }, [catalogRequests, collectB3MarketObservations]);
+  const b3CatalogQuery = trpc.hedge.b3CompatibleContractCatalog.useQuery(
+    catalogRequests.length ? { asOf: lastWeekday(), requests: catalogRequests } : skipToken,
+    { retry: false, staleTime: 60_000 },
+  );
+  const b3ContractCatalog = b3CatalogQuery.data?.catalog ?? [];
   const [manualB3Lineage, setManualB3Lineage] = useState<B3ManualLineageRow[]>([]);
   const [b3NormalizedArtifacts, setB3NormalizedArtifacts] = useState<B3NormalizedArtifact[]>([]);
   const [selectedAlternativeId, setSelectedAlternativeId] = useState<string | null>(null);
@@ -356,14 +347,35 @@ export default function HedgeDashboard() {
     const family = selectedCommodityMarketFamily;
     const alternativeId = selectedAlternativeId;
     setCommodityMarketLink({ alternativeId, status: "loading", observation: null });
+    const wantsOption = selectedAlternative?.alternative_kind === "B3_DOL_OPTION" || selectedAlternative?.alternative_kind === "B3_COMMODITY_OPTION";
+    const wantedType = wantsOption ? "OPTION" : "FUTURE";
+    const catalogEntry = b3ContractCatalog.find(item => item.family === family && item.horizonDate === selectedSituation.horizon_date && item.instrumentType === wantedType);
+    type CatalogEntry = typeof b3ContractCatalog[number];
+    const publishCatalogMatch = (match: CatalogEntry["observations"][number], lineage: Exclude<CatalogEntry["lineage"], null>) => {
+      const priceXml = lineage.price.xml;
+      const instrumentXml = lineage.instrument.xml;
+      if (!priceXml || !instrumentXml) return false;
+      receiveB3ObservationSelection({
+        alternativeId,
+        candidate: match as any,
+        priceSource: { reportType: "BVBG.086.01", sourceUrl: lineage.price.officialDownloadUrl, sourceFile: priceXml.sourceFile, sourceAsOf: lineage.price.sourceAsOf, sourceHashSha256: priceXml.sha256, normalizedCsvStorageKey: null, normalizedCsvSha256: null, normalizedManifestStorageKey: null },
+        instrumentSource: { sourceUrl: lineage.instrument.officialDownloadUrl, sourceFile: instrumentXml.sourceFile, sourceAsOf: lineage.instrument.sourceAsOf, sourceHashSha256: instrumentXml.sha256, normalizedCsvStorageKey: null, normalizedCsvSha256: null, normalizedManifestStorageKey: null },
+        selectedAtUtc: new Date().toISOString(),
+      });
+      setCommodityMarketLink({ alternativeId, status: "linked", observation: { symbol: match.symbol, adjustedQuote: match.adjustedQuote, lastPrice: match.lastPrice, maturity: match.maturity, sourceAsOf: lineage.price.sourceAsOf, sourceHashSha256: match.sourceHashSha256 ?? priceXml.sha256 } });
+      return true;
+    };
     try {
+      const catalogMatch = catalogEntry?.observations[0];
+      if (catalogMatch && catalogEntry.lineage) {
+        publishCatalogMatch(catalogMatch, catalogEntry.lineage);
+        return;
+      }
       const asOf = lastWeekday();
       const result = await Promise.race([
         collectB3MarketObservations.mutateAsync({ family, asOf }),
         new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error("A consulta B3 excedeu 45 segundos; tente novamente.")), 45_000)),
       ]);
-      const wantsOption = selectedAlternative?.alternative_kind === "B3_DOL_OPTION" || selectedAlternative?.alternative_kind === "B3_COMMODITY_OPTION";
-      const wantedType = wantsOption ? "OPTION" : "FUTURE";
       const match = selectCompatibleB3Contracts(result.observations, family, selectedSituation.horizon_date, wantedType)[0] ?? null;
       const priceNormalization = result.normalizations.price.find(item => item.validationStatus === "valid") ?? result.normalizations.price[0];
       const instrumentNormalization = result.normalizations.instrument.find(item => item.validationStatus === "valid") ?? result.normalizations.instrument[0];
@@ -376,14 +388,11 @@ export default function HedgeDashboard() {
           selectedAtUtc: new Date().toISOString(),
         });
       }
-      setCommodityMarketLink({
-        alternativeId, status: match ? "linked" : "not_found",
-        observation: match ? { symbol: match.symbol, adjustedQuote: match.adjustedQuote, lastPrice: match.lastPrice, maturity: match.maturity, sourceAsOf: result.lineage.price.sourceAsOf, sourceHashSha256: result.lineage.price.outerArchive.sha256 } : null,
-      });
+      setCommodityMarketLink({ alternativeId, status: match ? "linked" : "not_found", observation: match ? { symbol: match.symbol, adjustedQuote: match.adjustedQuote, lastPrice: match.lastPrice, maturity: match.maturity, sourceAsOf: result.lineage.price.sourceAsOf, sourceHashSha256: result.lineage.price.outerArchive.sha256 } : null });
     } catch {
       setCommodityMarketLink({ alternativeId, status: "error", observation: null });
     }
-  }, [selectedCommodityMarketFamily, selectedSituation, selectedAlternativeId, collectB3MarketObservations]);
+  }, [selectedCommodityMarketFamily, selectedSituation, selectedAlternativeId, selectedAlternative, b3ContractCatalog, collectB3MarketObservations]);
 
   // A vinculação é por operação selecionada — trocar de alternativa reinicia o estado para não mostrar a cotação de outra série/vencimento.
   useEffect(() => {

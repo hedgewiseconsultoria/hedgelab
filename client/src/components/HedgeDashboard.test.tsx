@@ -42,6 +42,9 @@ vi.mock("@/lib/trpc", () => ({
       igpmPublishedTable: { useQuery: () => ({ data: undefined, isFetching: false, refetch: vi.fn() }) },
       collectB3MarketObservations: { useMutation: () => ({ mutateAsync: vi.fn().mockResolvedValue({ observations: [], lineage: { price: { sourceAsOf: "", outerArchive: { sha256: "" } } } }) }) },
     },
+    hedge: {
+      b3CompatibleContractCatalog: { useQuery: () => ({ data: { asOf: "2026-08-24", catalog: [] }, isError: false, isFetching: false }) },
+    },
     workspace: {
       createScenarioBundle: { useMutation: (options: any) => ({ mutate: (variables: any) => {
         mocks.createMutate(variables);

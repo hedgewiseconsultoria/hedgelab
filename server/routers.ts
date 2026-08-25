@@ -34,6 +34,7 @@ import { parseB3InstrumentXmlStream } from "./ingestion/b3InstrumentParser";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { dataframeToCsv, sha256Text } from "./domain/dataframeArtifact";
 import { buildB3MarketDataset, selectCompatibleB3Contracts } from "./domain/b3MarketDataset";
+import { readB3ContractCatalogSnapshot } from "./ingestion/b3SnapshotCache";
 import { buildDiFutureCurveVertices } from "./domain/diFutureCurve";
 import { diagnoseHedgeAlternatives } from "./domain/hedgeAlternatives";
 import { materializeCanonicalHedgeDataframes } from "./domain/canonicalHedgeDataframes";
@@ -251,6 +252,21 @@ async function collectAndBuildB3DiFutureCurve(input: { asOf: string }) {
 
 async function collectB3MarketObservations(input: { family: import("./domain/dataframes").SupportedB3Family; asOf: string }) {
   const collectedAtUtc = new Date().toISOString();
+  const compactSnapshot = await readB3ContractCatalogSnapshot({ asOf: input.asOf, timeoutMs: 10_000 });
+  if (compactSnapshot) {
+    return {
+      collectedAtUtc,
+      family: input.family,
+      requestedAsOf: input.asOf,
+      associationStatus: compactSnapshot.associationStatus,
+      issues: compactSnapshot.issues,
+      coverage: compactSnapshot.coverage.find(row => row.family === input.family) ?? null,
+      observations: compactSnapshot.rows.filter(row => row.family === input.family),
+      retrievalSource: "github_snapshot_cache" as const,
+      lineage: compactSnapshot.lineage,
+      normalizations: { price: [], instrument: [] },
+    };
+  }
   const [priceDownload, instrumentDownload] = await Promise.all([
     collectB3OfficialReport({ reportType: "BVBG.086.01", asOf: input.asOf, persistRaw: false, timeoutMs: B3_DI1_DOWNLOAD_TIMEOUT_MS, maxAttempts: 1 }),
     collectB3OfficialReport({ reportType: "BVBG.028.02", asOf: input.asOf, persistRaw: false, timeoutMs: B3_DI1_DOWNLOAD_TIMEOUT_MS, maxAttempts: 1 }),
@@ -309,13 +325,37 @@ async function collectB3MarketObservations(input: { family: import("./domain/dat
   };
 }
 async function collectCompatibleB3ContractCatalog(input: { asOf: string; requests: Array<{ family: import("./domain/dataframes").SupportedB3Family; horizonDate: string; instrumentType?: "FUTURE" | "OPTION" }> }) {
-  const catalog = [];
-  for (const request of input.requests) {
-    const result = await collectB3MarketObservations({ family: request.family, asOf: input.asOf });
-    const matches = selectCompatibleB3Contracts(result.observations, request.family, request.horizonDate, request.instrumentType).slice(0, 24);
-    catalog.push({ ...request, requestedAsOf: input.asOf, associationStatus: result.associationStatus, retrievalSource: result.retrievalSource, lineage: result.lineage, coverage: result.coverage, observations: matches, normalizations: result.normalizations, issues: result.issues });
+  const snapshot = await readB3ContractCatalogSnapshot({ asOf: input.asOf, timeoutMs: 10_000 });
+  if (!snapshot) {
+    return {
+      asOf: input.asOf,
+      catalog: input.requests.map(request => ({
+        ...request,
+        requestedAsOf: input.asOf,
+        associationStatus: "blocked_snapshot_unavailable" as const,
+        retrievalSource: null,
+        lineage: null,
+        coverage: null,
+        observations: [],
+        normalizations: { price: [], instrument: [] },
+        issues: [{ code: "B3_CATALOG_SNAPSHOT_UNAVAILABLE", severity: "error", instrumentId: null, family: request.family, message: `Índice compacto B3 não disponível para ${input.asOf}; o servidor não reprocessará XMLs gigantes durante a requisição. Nenhum preço ou contrato foi inventado.` }],
+      })),
+    };
   }
-  return { asOf: input.asOf, catalog };
+  return {
+    asOf: input.asOf,
+    catalog: input.requests.map(request => ({
+      ...request,
+      requestedAsOf: input.asOf,
+      associationStatus: snapshot.associationStatus,
+      retrievalSource: "github_snapshot_cache" as const,
+      lineage: snapshot.lineage,
+      coverage: snapshot.coverage.find(row => row.family === request.family) ?? null,
+      observations: selectCompatibleB3Contracts(snapshot.rows, request.family, request.horizonDate, request.instrumentType).slice(0, 24),
+      normalizations: { price: [], instrument: [] },
+      issues: snapshot.issues.filter(issue => issue.family === request.family),
+    })),
+  };
 }
 
 async function persistOfficialManualDataset(input: {

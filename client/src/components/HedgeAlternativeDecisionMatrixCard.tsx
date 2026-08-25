@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, CircleAlert, Scale } from "lucide-react";
 import type { CanonicalHedgeDataframes } from "../../../server/domain/dataframes";
 
-type CatalogRow = { family: string; horizonDate: string; observations: Array<{ symbol: string; maturity: string | null; instrumentType: string; lastPrice: number | null; adjustedQuote: number | null }> };
+type CatalogRow = { family: string; horizonDate: string; associationStatus: string; issues: unknown[]; observations: Array<{ symbol: string; maturity: string | null; instrumentType: string; lastPrice: number | null; adjustedQuote: number | null }> };
 type Props = {
   dataframes: CanonicalHedgeDataframes;
   selectedAlternativeId?: string | null;
@@ -17,10 +17,11 @@ function catalogFamily(alternative: CanonicalHedgeDataframes["hedge_alternative_
   return situation.commodity_reference ?? null;
 }
 
-function status(alternative: CanonicalHedgeDataframes["hedge_alternative_dataframe"][number], hasLink: boolean, hasCatalog: boolean, result?: CanonicalHedgeDataframes["scenario_result_dataframe"][number]) {
+function status(alternative: CanonicalHedgeDataframes["hedge_alternative_dataframe"][number], hasLink: boolean, hasCatalog: boolean, catalogBlocked: boolean, result?: CanonicalHedgeDataframes["scenario_result_dataframe"][number]) {
   if (result?.result_status === "SUCCESS") return { label: "Resultado disponível", tone: "ok" };
   if (hasLink) return { label: "Série vinculada; cálculo pendente", tone: "ok" };
   if (hasCatalog) return { label: "Contrato compatível encontrado", tone: "ok" };
+  if (catalogBlocked) return { label: "Catálogo B3 bloqueado", tone: "warn" };
   if (alternative.eligibility_status === "contract_required") return { label: "Contrato necessário", tone: "warn" };
   if (alternative.eligibility_status === "blocked") return { label: "Bloqueada", tone: "warn" };
   return { label: "Ativo elegível; série pendente", tone: "warn" };
@@ -38,8 +39,10 @@ export default function HedgeAlternativeDecisionMatrixCard({ dataframes, selecte
       const situationForAlternative = dataframes.economic_situation_dataframe.find(item => item.economic_situation_id === alternative.economic_situation_id) ?? situation;
       const family = catalogFamily(alternative, situationForAlternative);
       const catalog = family ? b3Catalog.find(item => item.family === family && item.horizonDate === situationForAlternative.horizon_date) : undefined;
-      const current = status(alternative, Boolean(link), Boolean(catalog?.observations.length), result);
-      return <tr key={alternative.alternative_id} className={`border-b border-[#edf3f1] ${selectedAlternativeId === alternative.alternative_id ? "bg-[#f0faf6]" : ""}`}><td className="px-3 py-3 font-semibold text-[#23474a]">{selectedAlternativeId === alternative.alternative_id ? "Em análise · " : ""}{alternative.label}</td><td className="px-3 py-3 text-[#55736d]">{link ? `${link.symbol} · venc. ${link.maturity ?? "não informado"}` : catalog?.observations.length ? catalog.observations.slice(0, 3).map(item => `${item.symbol} · ${item.maturity ?? "vencimento não informado"}${item.lastPrice !== null || item.adjustedQuote !== null ? ` · preço ${item.lastPrice ?? item.adjustedQuote}` : " · preço indisponível"}`).join(" | ") : alternative.required_data.join(" · ")}</td><td className="px-3 py-3 text-[#55736d]">{link ? `${link.price_source.source_asof} · hash preservado` : alternative.source_ids.includes("B3_PUBLIC_FILES") ? "Boletim oficial disponível; série não vinculada" : "Termos bilaterais necessários"}</td><td className="px-3 py-3"><span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] ${current.tone === "ok" ? "bg-[#e5f7f1] text-[#20715f]" : "bg-[#fff6df] text-[#7d622d]"}`}>{current.tone === "ok" ? <CheckCircle2 className="h-3 w-3" /> : <CircleAlert className="h-3 w-3" />}{current.label}</span>{result?.limitation && <p className="mt-1 max-w-[260px] text-[10px] leading-4 text-[#71858a]">{result.limitation}</p>}</td></tr>;
+      const catalogBlocked = Boolean(catalog && catalog.associationStatus.startsWith("blocked"));
+      const current = status(alternative, Boolean(link), Boolean(catalog?.observations.length), catalogBlocked, result);
+      const issueMessage = catalog?.issues.find(issue => typeof issue === "object" && issue !== null && "message" in issue && typeof issue.message === "string") as { message: string } | undefined;
+      return <tr key={alternative.alternative_id} className={`border-b border-[#edf3f1] ${selectedAlternativeId === alternative.alternative_id ? "bg-[#f0faf6]" : ""}`}><td className="px-3 py-3 font-semibold text-[#23474a]">{selectedAlternativeId === alternative.alternative_id ? "Em análise · " : ""}{alternative.label}</td><td className="px-3 py-3 text-[#55736d]">{link ? `${link.symbol} · venc. ${link.maturity ?? "não informado"}` : catalog?.observations.length ? catalog.observations.slice(0, 3).map(item => `${item.symbol} · ${item.maturity ?? "vencimento não informado"}${item.lastPrice !== null || item.adjustedQuote !== null ? ` · preço ${item.lastPrice ?? item.adjustedQuote}` : " · preço indisponível"}`).join(" | ") : catalogBlocked ? "Sem catálogo compacto verificado; cálculo efetivo bloqueado" : alternative.required_data.join(" · ")}</td><td className="px-3 py-3 text-[#55736d]">{link ? `${link.price_source.source_asof} · hash preservado` : catalogBlocked ? issueMessage?.message ?? "Índice B3 indisponível" : alternative.source_ids.includes("B3_PUBLIC_FILES") ? "Boletim oficial disponível; série não vinculada" : "Termos bilaterais necessários"}</td><td className="px-3 py-3"><span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] ${current.tone === "ok" ? "bg-[#e5f7f1] text-[#20715f]" : "bg-[#fff6df] text-[#7d622d]"}`}>{current.tone === "ok" ? <CheckCircle2 className="h-3 w-3" /> : <CircleAlert className="h-3 w-3" />}{current.label}</span>{result?.limitation && <p className="mt-1 max-w-[260px] text-[10px] leading-4 text-[#71858a]">{result.limitation}</p>}</td></tr>;
     })}</tbody></table></div></CardContent>
   </Card>;
 }

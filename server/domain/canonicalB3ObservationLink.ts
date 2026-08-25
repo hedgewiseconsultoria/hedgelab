@@ -26,18 +26,18 @@ export type B3ObservationSelectionPublication = {
     sourceFile: string;
     sourceAsOf: string;
     sourceHashSha256: string;
-    normalizedCsvStorageKey: string;
-    normalizedCsvSha256: string;
-    normalizedManifestStorageKey: string;
+    normalizedCsvStorageKey: string | null;
+    normalizedCsvSha256: string | null;
+    normalizedManifestStorageKey: string | null;
   };
   instrumentSource: {
     sourceUrl: string;
     sourceFile: string;
     sourceAsOf: string;
     sourceHashSha256: string;
-    normalizedCsvStorageKey: string;
-    normalizedCsvSha256: string;
-    normalizedManifestStorageKey: string;
+    normalizedCsvStorageKey: string | null;
+    normalizedCsvSha256: string | null;
+    normalizedManifestStorageKey: string | null;
   };
   selectedAtUtc: string;
 };
