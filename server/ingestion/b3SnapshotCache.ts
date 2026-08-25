@@ -72,15 +72,27 @@ export async function readB3ArchiveFromSnapshotCache(input: {
   if (config.token) headers.Authorization = `Bearer ${config.token}`;
 
   try {
-    const contentsUrl = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}?ref=${encodeURIComponent(config.branch)}`;
-    const zipResponse = await fetchWithTimeout(contentsUrl, { headers }, timeoutMs);
-    if (!zipResponse || !zipResponse.ok) return null;
+    const ref = encodeURIComponent(config.branch);
+    const rawBase = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${ref}`;
+    const rawZipUrl = `${rawBase}/${path}?ref=${ref}`;
+    const rawHashUrl = `${rawBase}/${path}.sha256?ref=${ref}`;
+    const requestHeaders = { "User-Agent": "hedge-lab-b3-snapshot-cache" };
+
+    // O raw.githubusercontent.com entrega o ZIP diretamente e evita a latência/limite do
+    // endpoint /contents. O parâmetro ref também mantém os mocks e branches explícitos.
+    let zipResponse = await fetchWithTimeout(rawZipUrl, { headers: requestHeaders }, timeoutMs);
+    let sha256Response: Response | null = null;
+    if (!zipResponse?.ok) {
+      const contentsUrl = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}?ref=${ref}`;
+      zipResponse = await fetchWithTimeout(contentsUrl, { headers }, timeoutMs);
+      if (!zipResponse?.ok) return null;
+      sha256Response = await fetchWithTimeout(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}.sha256?ref=${ref}`, { headers }, timeoutMs);
+    } else {
+      sha256Response = await fetchWithTimeout(rawHashUrl, { headers: requestHeaders }, timeoutMs);
+    }
+    if (!sha256Response?.ok) return null;
     const buffer = Buffer.from(await zipResponse.arrayBuffer());
     if (buffer.length === 0 || buffer.subarray(0, 2).toString("utf8") !== "PK") return null;
-
-    const sha256Url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}.sha256?ref=${encodeURIComponent(config.branch)}`;
-    const sha256Response = await fetchWithTimeout(sha256Url, { headers }, timeoutMs);
-    if (!sha256Response || !sha256Response.ok) return null;
     const expectedHash = (await sha256Response.text()).trim().split(/\s+/)[0];
     const actualHash = createHash("sha256").update(buffer).digest("hex");
     if (!expectedHash || expectedHash !== actualHash) return null;

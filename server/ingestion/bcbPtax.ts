@@ -65,10 +65,22 @@ function hashRawPayload(rawPayload: string): string {
   return createHash("sha256").update(rawPayload, "utf8").digest("hex");
 }
 
+function previousWeekday(date: string, offset: number): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const value = new Date(Date.UTC(year!, month! - 1, day!));
+  let remaining = offset;
+  while (remaining > 0) {
+    value.setUTCDate(value.getUTCDate() - 1);
+    if (value.getUTCDay() !== 0 && value.getUTCDay() !== 6) remaining -= 1;
+  }
+  return value.toISOString().slice(0, 10);
+}
+
 export async function fetchPtaxUsdDay(
   date: string,
   fetcher: FetchLike = fetch,
   now: () => Date = () => new Date(),
+  allowPreviousPublishedFallback = true,
 ): Promise<PtaxUsdDataset> {
   const endpoint = buildPtaxUsdDayUrl(date);
   const response = await fetcher(endpoint, {
@@ -100,12 +112,29 @@ export async function fetchPtaxUsdDay(
     sourceHashSha256: hashRawPayload(rawPayload),
     parserVersion: "bcb-ptax-odata-v1",
   };
+  if (parsed.data.value.length === 0 && allowPreviousPublishedFallback) {
+    for (let offset = 1; offset <= 5; offset += 1) {
+      const fallbackDate = previousWeekday(date, offset);
+      try {
+        const fallback = await fetchPtaxUsdDay(fallbackDate, fetcher, now, false);
+        if (fallback.availabilityStatus === "quoted") {
+          return {
+            ...fallback,
+            availabilityMessage: `Não havia PTAX publicada para ${date}; foi utilizada a última cotação oficial publicada em ${fallbackDate}. A data efetiva permanece registrada na linhagem.`,
+          };
+        }
+      } catch {
+        // Uma indisponibilidade pontual não impede a tentativa do dia útil anterior.
+      }
+    }
+  }
+
   if (parsed.data.value.length === 0) {
     return {
       raw,
       dataframe: [],
       availabilityStatus: "unavailable",
-      availabilityMessage: "O BCB não publicou cotação PTAX para a data-base informada. Selecione um dia útil com boletim disponível; nenhuma taxa substituta foi utilizada.",
+      availabilityMessage: "O BCB não publicou cotação PTAX para a data-base informada nem para os cinco dias úteis anteriores. Nenhuma taxa substituta foi utilizada.",
       lineage: { ...baseLineage, validationStatus: "warning" },
     };
   }

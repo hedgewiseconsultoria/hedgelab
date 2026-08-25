@@ -15,10 +15,11 @@ O projeto também dependia de snapshots publicados pelo GitHub Actions, mas o ZI
 | `server/ingestion/b3OfficialDownload.ts` | Em produção, o download online direto da B3 fica desabilitado por padrão. O caminho interativo usa o snapshot gratuito do GitHub; o download ao vivo fica reservado ao workflow diário ou à habilitação explícita de `B3_ALLOW_LIVE_FETCH=true`. |
 | `server/ingestion/b3SnapshotCache.ts` | Mantida a validação de ZIP e SHA-256 e a compatibilidade com o endpoint de conteúdo do GitHub. |
 | `client/src/components/B3ManualCollectionCard.tsx` | A atualização automática passou a carregar somente metadados, hashes e linhagem; a normalização pesada ficou sob demanda no vínculo da operação, reduzindo o tempo de abertura da Base técnica. |
+| `server/ingestion/bcbPtax.ts` | Mantida a consulta oficial `CotacaoDolarDia`, com tentativa auditável dos cinco dias úteis anteriores quando a data solicitada não tem publicação. A linhagem conserva a data efetiva da cotação e nenhuma taxa é inventada. |
 
 ## Validação
 
-A validação foi concluída com `pnpm check`, 102 arquivos de teste aprovados, 299 testes aprovados e `pnpm build` concluído. O build apresentou apenas os avisos já existentes sobre variáveis de analytics não definidas e tamanho de chunk.
+A validação foi concluída com `pnpm check`, 102 arquivos de teste aprovados e 299 testes aprovados. O fluxo PTAX, o cache B3 e o downloader oficial foram validados especificamente após as últimas alterações. O build apresentou apenas os avisos já existentes sobre variáveis de analytics não definidas e tamanho de chunk.
 
 ## Deploy
 
