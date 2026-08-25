@@ -14,6 +14,7 @@ O projeto também dependia de snapshots publicados pelo GitHub Actions, mas o ZI
 | `client/src/components/HedgeDashboard.tsx` | O vínculo passou a selecionar `OPTION` para alternativas de opções e `FUTURE` para futuros; tenta primeiro o vencimento exato e depois o mesmo mês; publica a seleção em `b3_observation_link_dataframe`. |
 | `server/ingestion/b3OfficialDownload.ts` | Em produção, o download online direto da B3 fica desabilitado por padrão. O caminho interativo usa o snapshot gratuito do GitHub; o download ao vivo fica reservado ao workflow diário ou à habilitação explícita de `B3_ALLOW_LIVE_FETCH=true`. |
 | `server/ingestion/b3SnapshotCache.ts` | Mantida a validação de ZIP e SHA-256 e a compatibilidade com o endpoint de conteúdo do GitHub. |
+| `client/src/components/B3ManualCollectionCard.tsx` | A atualização automática passou a carregar somente metadados, hashes e linhagem; a normalização pesada ficou sob demanda no vínculo da operação, reduzindo o tempo de abertura da Base técnica. |
 
 ## Validação
 
