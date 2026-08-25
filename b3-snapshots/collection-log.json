@@ -1,0 +1,59 @@
+{
+  "collectedAtUtc": "2026-08-25T00:48:57.097Z",
+  "summary": [
+    {
+      "asOf": "2026-08-24",
+      "reportType": "BVBG.028.02",
+      "status": "saved",
+      "archiveFilename": "IN260824.zip",
+      "bytes": 29442125,
+      "sha256": "1e5b86ec29cfb4ff335c444a5b5c3b5e16c9bf34a2e36de656e0a72102c0a86b",
+      "officialDownloadUrl": "https://www.b3.com.br/pesquisapregao/download?filelist=IN260824.zip%2C"
+    },
+    {
+      "asOf": "2026-08-24",
+      "reportType": "BVBG.086.01",
+      "status": "saved",
+      "archiveFilename": "PR260824.zip",
+      "bytes": 11753143,
+      "sha256": "485ac9f53b0ba81593f82e3826f88b30f8babacd4f6518fd56330d9385f7b3c4",
+      "officialDownloadUrl": "https://www.b3.com.br/pesquisapregao/download?filelist=PR260824.zip%2C"
+    },
+    {
+      "asOf": "2026-08-24",
+      "reportType": "BVBG.187.01",
+      "status": "saved",
+      "archiveFilename": "SPRD260824.zip",
+      "bytes": 139197,
+      "sha256": "bc570837324c3c9948a5edabe47a46aeabfc51dcc430c5f96d8e2273afa585dc",
+      "officialDownloadUrl": "https://www.b3.com.br/pesquisapregao/download?filelist=SPRD260824.zip%2C"
+    },
+    {
+      "asOf": "2026-08-21",
+      "reportType": "BVBG.028.02",
+      "status": "saved",
+      "archiveFilename": "IN260821.zip",
+      "bytes": 36439727,
+      "sha256": "95f73eaaefa096b6c03c14a221a0c28c4590a6f8935ca70f63a259ab84ce4803",
+      "officialDownloadUrl": "https://www.b3.com.br/pesquisapregao/download?filelist=IN260821.zip%2C"
+    },
+    {
+      "asOf": "2026-08-21",
+      "reportType": "BVBG.086.01",
+      "status": "saved",
+      "archiveFilename": "PR260821.zip",
+      "bytes": 15269112,
+      "sha256": "d56d5daf4698f4673f5012918bc493a4a96497b363ef49d39ccb550646647162",
+      "officialDownloadUrl": "https://www.b3.com.br/pesquisapregao/download?filelist=PR260821.zip%2C"
+    },
+    {
+      "asOf": "2026-08-21",
+      "reportType": "BVBG.187.01",
+      "status": "saved",
+      "archiveFilename": "SPRD260821.zip",
+      "bytes": 136814,
+      "sha256": "2687a8445d7561a0ca50c7eb3deb77cb0b755c0c6252d7d8f37c248463d781c1",
+      "officialDownloadUrl": "https://www.b3.com.br/pesquisapregao/download?filelist=SPRD260821.zip%2C"
+    }
+  ]
+}
