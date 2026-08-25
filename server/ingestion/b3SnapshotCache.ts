@@ -74,13 +74,13 @@ export async function readB3ArchiveFromSnapshotCache(input: {
   try {
     const contentsUrl = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}?ref=${encodeURIComponent(config.branch)}`;
     const zipResponse = await fetchWithTimeout(contentsUrl, { headers }, timeoutMs);
-    if (!zipResponse.ok) return null;
+    if (!zipResponse || !zipResponse.ok) return null;
     const buffer = Buffer.from(await zipResponse.arrayBuffer());
     if (buffer.length === 0 || buffer.subarray(0, 2).toString("utf8") !== "PK") return null;
 
     const sha256Url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}.sha256?ref=${encodeURIComponent(config.branch)}`;
-    const sha256Response = await fetchWithTimeout(sha256Url, { headers: { ...headers, Accept: "application/vnd.github.raw+json" } }, timeoutMs);
-    if (!sha256Response.ok) return null;
+    const sha256Response = await fetchWithTimeout(sha256Url, { headers }, timeoutMs);
+    if (!sha256Response || !sha256Response.ok) return null;
     const expectedHash = (await sha256Response.text()).trim().split(/\s+/)[0];
     const actualHash = createHash("sha256").update(buffer).digest("hex");
     if (!expectedHash || expectedHash !== actualHash) return null;

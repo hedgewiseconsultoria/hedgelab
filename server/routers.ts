@@ -256,6 +256,7 @@ async function collectB3MarketObservations(input: { family: import("./domain/dat
     collectB3OfficialReport({ reportType: "BVBG.028.02", asOf: input.asOf, persistRaw: false, timeoutMs: B3_DI1_DOWNLOAD_TIMEOUT_MS, maxAttempts: 1 }),
   ]);
   const priceDatasets = [];
+  const priceNormalizations = [];
   for (const xml of priceDownload.xmlFiles) {
     const source = await openB3XmlWithIncrementalHash(xml);
     const dataset = await parseB3PriceReportXmlStream(source.stream, {
@@ -264,8 +265,16 @@ async function collectB3MarketObservations(input: { family: import("./domain/dat
     });
     dataset.lineage.sourceHashSha256 = source.finalizeHash();
     priceDatasets.push(dataset);
+    const csvBytes = Buffer.from(`\ufeff${dataframeToCsv(dataset.dataframe as Array<Record<string, unknown>>)}`, "utf8");
+    const csvFilename = xml.filename.replace(/\.xml$/i, ".csv");
+    const keyPrefix = `b3/normalized/${input.asOf}/BVBG.086.01/${csvFilename}`;
+    const csvStored = await storagePut(keyPrefix, csvBytes, "text/csv; charset=utf-8");
+    const manifest = { schemaVersion: "1.0.0", generatedAtUtc: collectedAtUtc, source: dataset.lineage, records: dataset.dataframe.length, columns: dataset.dataframe.length ? Object.keys(dataset.dataframe[0]!) : [], observedFields: dataset.observedFields, issues: dataset.issues, csv: { filename: csvFilename, bytes: csvBytes.length, sha256: sha256Text(csvBytes), storageKey: csvStored.key, storageUrl: csvStored.url } };
+    const manifestStored = await storagePut(`${keyPrefix}.manifest.json`, JSON.stringify(manifest, null, 2), "application/json");
+    priceNormalizations.push({ sourceFile: xml.filename, validationStatus: dataset.lineage.validationStatus, csv: manifest.csv, manifest: { storageKey: manifestStored.key, storageUrl: manifestStored.url } });
   }
   const instrumentDatasets = [];
+  const instrumentNormalizations = [];
   for (const xml of instrumentDownload.xmlFiles) {
     const source = await openB3XmlWithIncrementalHash(xml);
     const dataset = await parseB3InstrumentXmlStream(source.stream, {
@@ -274,6 +283,13 @@ async function collectB3MarketObservations(input: { family: import("./domain/dat
     }, { includeRow: row => row.family === input.family });
     dataset.lineage.sourceHashSha256 = source.finalizeHash();
     instrumentDatasets.push(dataset);
+    const csvBytes = Buffer.from(`\ufeff${dataframeToCsv(dataset.instrumentMasterDataframe as Array<Record<string, unknown>>)}`, "utf8");
+    const csvFilename = xml.filename.replace(/\.xml$/i, ".instrument-master.csv");
+    const keyPrefix = `b3/normalized/${input.asOf}/BVBG.028.02/${csvFilename}`;
+    const csvStored = await storagePut(keyPrefix, csvBytes, "text/csv; charset=utf-8");
+    const manifest = { schemaVersion: "1.0.0", generatedAtUtc: collectedAtUtc, source: dataset.lineage, records: dataset.instrumentMasterDataframe.length, columns: dataset.instrumentMasterDataframe.length ? Object.keys(dataset.instrumentMasterDataframe[0]!) : [], rawInstrumentRecords: dataset.dataframe.length, coverage: dataset.coverage, issues: dataset.issues, csv: { filename: csvFilename, bytes: csvBytes.length, sha256: sha256Text(csvBytes), storageKey: csvStored.key, storageUrl: csvStored.url } };
+    const manifestStored = await storagePut(`${keyPrefix}.manifest.json`, JSON.stringify(manifest, null, 2), "application/json");
+    instrumentNormalizations.push({ sourceFile: xml.filename, validationStatus: dataset.lineage.validationStatus, csv: manifest.csv, manifest: { storageKey: manifestStored.key, storageUrl: manifestStored.url } });
   }
   const market = buildB3MarketDataset(priceDatasets.flatMap(dataset => dataset.dataframe), instrumentDatasets.flatMap(dataset => dataset.instrumentMasterDataframe));
   return {
@@ -285,9 +301,9 @@ async function collectB3MarketObservations(input: { family: import("./domain/dat
       price: { sourceAsOf: priceDownload.sourceAsOf, officialDownloadUrl: priceDownload.officialDownloadUrl, outerArchive: priceDownload.outerArchive },
       instrument: { sourceAsOf: instrumentDownload.sourceAsOf, officialDownloadUrl: instrumentDownload.officialDownloadUrl, outerArchive: instrumentDownload.outerArchive },
     },
+    normalizations: { price: priceNormalizations, instrument: instrumentNormalizations },
   };
 }
-
 async function persistOfficialManualDataset(input: {
   sourceId: "BCB_PTAX" | "BCB_SGS_11_SELIC" | "BCB_SGS_1178_SELIC_AA252" | "IBGE_IPCA" | "ANBIMA_ETTJ" | "FGV_IGPM";
   raw: unknown;

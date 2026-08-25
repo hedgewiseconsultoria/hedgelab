@@ -150,6 +150,13 @@ export async function collectB3OfficialReport(input: {
     retrievalSource = "github_snapshot_cache";
   }
 
+  // Em produção, o caminho interativo usa somente o snapshot gratuito do GitHub.
+  // O download direto da B3 fica reservado ao workflow diário (ou habilitado explicitamente).
+  const allowLiveFetch = process.env.NODE_ENV === "test" || process.env.B3_ALLOW_LIVE_FETCH === "true" || input.skipSnapshotCache === true;
+  if (!outerBuffer && !allowLiveFetch) {
+    throw new Error(`Snapshot gratuito B3 não disponível para ${input.asOf}/${input.reportType}. O download online está desabilitado no caminho interativo; execute o workflow diário de snapshots ou habilite B3_ALLOW_LIVE_FETCH=true apenas como contingência.`);
+  }
+
   for (let attempt = 1; !outerBuffer && attempt <= maxAttempts; attempt += 1) {
     attempts = attempt;
     const controller = new AbortController();

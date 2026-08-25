@@ -327,7 +327,22 @@ export default function HedgeDashboard() {
     try {
       const asOf = lastWeekday();
       const result = await collectB3MarketObservations.mutateAsync({ family, asOf });
-      const match = result.observations.find(observation => observation.instrumentType === "FUTURE" && observation.maturity === selectedSituation.horizon_date);
+      const wantsOption = selectedAlternative?.alternative_kind === "B3_DOL_OPTION" || selectedAlternative?.alternative_kind === "B3_COMMODITY_OPTION";
+      const wantedType = wantsOption ? "OPTION" : "FUTURE";
+      const exact = result.observations.find(observation => observation.instrumentType === wantedType && observation.maturity === selectedSituation.horizon_date);
+      const sameMonth = result.observations.find(observation => observation.instrumentType === wantedType && observation.maturity?.slice(0, 7) === selectedSituation.horizon_date.slice(0, 7));
+      const match = exact ?? sameMonth;
+      const priceNormalization = result.normalizations.price.find(item => item.validationStatus === "valid") ?? result.normalizations.price[0];
+      const instrumentNormalization = result.normalizations.instrument.find(item => item.validationStatus === "valid") ?? result.normalizations.instrument[0];
+      if (match && priceNormalization && instrumentNormalization) {
+        receiveB3ObservationSelection({
+          alternativeId,
+          candidate: match,
+          priceSource: { reportType: "BVBG.086.01", sourceUrl: result.lineage.price.officialDownloadUrl, sourceFile: priceNormalization.sourceFile, sourceAsOf: result.lineage.price.sourceAsOf, sourceHashSha256: result.lineage.price.outerArchive.sha256, normalizedCsvStorageKey: priceNormalization.csv.storageKey, normalizedCsvSha256: priceNormalization.csv.sha256, normalizedManifestStorageKey: priceNormalization.manifest.storageKey },
+          instrumentSource: { sourceUrl: result.lineage.instrument.officialDownloadUrl, sourceFile: instrumentNormalization.sourceFile, sourceAsOf: result.lineage.instrument.sourceAsOf, sourceHashSha256: result.lineage.instrument.outerArchive.sha256, normalizedCsvStorageKey: instrumentNormalization.csv.storageKey, normalizedCsvSha256: instrumentNormalization.csv.sha256, normalizedManifestStorageKey: instrumentNormalization.manifest.storageKey },
+          selectedAtUtc: new Date().toISOString(),
+        });
+      }
       setCommodityMarketLink({
         alternativeId, status: match ? "linked" : "not_found",
         observation: match ? { symbol: match.symbol, adjustedQuote: match.adjustedQuote, lastPrice: match.lastPrice, maturity: match.maturity, sourceAsOf: result.lineage.price.sourceAsOf, sourceHashSha256: result.lineage.price.outerArchive.sha256 } : null,
