@@ -44,14 +44,21 @@ jobs:
       - name: Coletar boletins oficiais da B3
         run: npx tsx scripts/collect-b3-daily-snapshot.mjs
 
-      - name: Commitar snapshot atualizado
+      - name: Commitar e publicar snapshot atualizado
         run: |
+          set -euo pipefail
           git config user.name "hedge-lab-b3-snapshot-bot"
           git config user.email "actions@users.noreply.github.com"
           git add b3-snapshots
           if git diff --cached --quiet; then
             echo "Nenhuma mudança no snapshot; nada para commitar."
-          else
-            git commit -m "chore(b3-snapshot): atualiza boletins oficiais B3 [skip ci]"
-            git push
+            exit 0
           fi
+
+          # O branch main pode receber alterações enquanto a coleta B3 está em andamento.
+          # O commit local vem antes do rebase para que o Git consiga reaplicar somente os
+          # snapshots sobre a versão remota mais recente, sem sobrescrever código do app.
+          git commit -m "chore(b3-snapshot): atualiza boletins oficiais B3 [skip ci]"
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
