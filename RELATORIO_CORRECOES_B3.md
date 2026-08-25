@@ -13,7 +13,8 @@ O projeto também dependia de snapshots publicados pelo GitHub Actions, mas o ZI
 | `server/routers.ts` | A rota `collectB3MarketObservations` passou a persistir CSVs e manifestos normalizados de preço e instrumento, retornando seus hashes e chaves de armazenamento para a seleção canônica. |
 | `client/src/components/HedgeDashboard.tsx` | O vínculo passou a selecionar `OPTION` para alternativas de opções e `FUTURE` para futuros; tenta primeiro o vencimento exato e depois o mesmo mês; publica a seleção em `b3_observation_link_dataframe`. |
 | `server/ingestion/b3OfficialDownload.ts` | Em produção, o download online direto da B3 fica desabilitado por padrão. O caminho interativo usa o snapshot gratuito do GitHub; o download ao vivo fica reservado ao workflow diário ou à habilitação explícita de `B3_ALLOW_LIVE_FETCH=true`. |
-| `server/ingestion/b3SnapshotCache.ts` | Mantida a validação de ZIP e SHA-256 e a compatibilidade com o endpoint de conteúdo do GitHub. |
+| `server/ingestion/b3SnapshotCache.ts` | Mantida a validação de ZIP e SHA-256, leitura preferencial via `raw.githubusercontent.com` e timeout ampliado para arquivos B3 de dezenas de MB. |
+| `server/ingestion/b3OfficialDownload.ts` | O timeout ampliado do cache é propagado também para a coleta automática no Render; arquivos parciais nunca são aceitos. |
 | `client/src/components/B3ManualCollectionCard.tsx` | A atualização automática passou a carregar somente metadados, hashes e linhagem; a normalização pesada ficou sob demanda no vínculo da operação, reduzindo o tempo de abertura da Base técnica. |
 | `server/ingestion/bcbPtax.ts` | Mantida a consulta oficial `CotacaoDolarDia`, com tentativa auditável dos cinco dias úteis anteriores quando a data solicitada não tem publicação. A linhagem conserva a data efetiva da cotação e nenhuma taxa é inventada. |
 

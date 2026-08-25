@@ -144,7 +144,7 @@ export async function collectB3OfficialReport(input: {
   let finalError: Error | null = null;
   let retrievalSource: "live" | "github_snapshot_cache" = "live";
 
-  const cached = input.skipSnapshotCache ? null : await readB3ArchiveFromSnapshotCache({ reportType: input.reportType, asOf: input.asOf, archiveFilename });
+  const cached = input.skipSnapshotCache ? null : await readB3ArchiveFromSnapshotCache({ reportType: input.reportType, asOf: input.asOf, archiveFilename, timeoutMs: Math.max(timeoutMs, 60_000) });
   if (cached) {
     outerBuffer = cached.buffer;
     retrievalSource = "github_snapshot_cache";

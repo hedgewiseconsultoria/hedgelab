@@ -67,7 +67,8 @@ export async function readB3ArchiveFromSnapshotCache(input: {
   const config = readCacheConfig();
   if (!config) return null;
   const path = snapshotPathFor(input.reportType, input.asOf, input.archiveFilename);
-  const timeoutMs = input.timeoutMs ?? 10_000;
+  // Os snapshots oficiais podem ter dezenas de MB; 10s aborta o download no Render antes do SHA-256.
+  const timeoutMs = input.timeoutMs ?? 60_000;
   const headers: Record<string, string> = { Accept: "application/vnd.github.raw+json", "User-Agent": "hedge-lab-b3-snapshot-cache" };
   if (config.token) headers.Authorization = `Bearer ${config.token}`;
 
