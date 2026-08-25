@@ -342,6 +342,7 @@ async function collectCompatibleB3ContractCatalog(input: { asOf: string; request
       })),
     };
   }
+  const marginByInstrumentId = new Map((snapshot.marginRows ?? []).map(row => [row.instrumentId, row]));
   return {
     asOf: input.asOf,
     catalog: input.requests.map(request => ({
@@ -351,7 +352,13 @@ async function collectCompatibleB3ContractCatalog(input: { asOf: string; request
       retrievalSource: "github_snapshot_cache" as const,
       lineage: snapshot.lineage,
       coverage: snapshot.coverage.find(row => row.family === request.family) ?? null,
-      observations: selectCompatibleB3Contracts(snapshot.rows, request.family, request.horizonDate, request.instrumentType).slice(0, 24),
+      observations: selectCompatibleB3Contracts(snapshot.rows, request.family, request.horizonDate, request.instrumentType).slice(0, 24).map(observation => ({
+        ...observation,
+        marginTheoreticalMax: marginByInstrumentId.get(observation.instrumentId)?.marginValue ?? null,
+        marginCurrency: "BRL",
+        marginSourceFile: marginByInstrumentId.get(observation.instrumentId)?.sourceFile ?? null,
+        marginSourceHashSha256: marginByInstrumentId.get(observation.instrumentId)?.sourceHashSha256 ?? null,
+      })),
       normalizations: { price: [], instrument: [] },
       issues: snapshot.issues.filter(issue => issue.family === request.family),
     })),

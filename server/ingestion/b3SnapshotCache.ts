@@ -4,6 +4,15 @@ import { resolve } from "node:path";
 import type { B3OfficialReportType } from "./b3OfficialDownload";
 import type { B3MarketObservationRow, SupportedB3Family } from "../domain/dataframes";
 
+export type B3TheoreticalMarginRow = {
+  instrumentId: string;
+  symbol: string;
+  marginValue: number;
+  clearingSystem: string | null;
+  sourceFile: string;
+  sourceHashSha256: string;
+};
+
 /**
  * Cache read-through para os pacotes ZIP oficiais da B3.
  *
@@ -31,11 +40,14 @@ export type B3ContractCatalogSnapshot = {
   generatedAtUtc: string;
   associationStatus: "valid" | "blocked_asof_mismatch";
   rows: B3MarketObservationRow[];
+  /** Margem Teórica Máxima B3 por unidade, sem netting e sem representar chamada CORE. */
+  marginRows?: B3TheoreticalMarginRow[];
   coverage: Array<{ family: SupportedB3Family; records: number; futureRecords: number; optionRecords: number; recordsWithTradePrice: number; recordsWithAdjustedQuote: number }>;
   issues: Array<{ code: string; severity: string; instrumentId: string | null; family: SupportedB3Family | null; message: string }>;
   lineage: {
     price: { sourceAsOf: string; officialDownloadUrl: string; outerArchive: { filename: string; bytes: number; sha256: string }; xml: { sourceFile: string; sha256: string } };
     instrument: { sourceAsOf: string; officialDownloadUrl: string; outerArchive: { filename: string; bytes: number; sha256: string }; xml: { sourceFile: string; sha256: string } };
+    margin?: { sourceAsOf: string; officialDownloadUrl: string; archive: { filename: string; sha256: string }; csv: { sourceFile: string } };
   };
 };
 

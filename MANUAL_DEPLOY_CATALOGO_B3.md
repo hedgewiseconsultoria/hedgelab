@@ -28,6 +28,13 @@ O preço acima não é um valor criado pela aplicação: ele está no snapshot d
 | `scripts/build-b3-catalog-index.ts` | Gera o índice compacto a partir dos ZIPs oficiais recém-baixados. |
 | `b3-snapshots/2026-08-24/catalog.json` | Índice compacto oficial já gerado para o snapshot disponível. |
 | `b3-snapshots/2026-08-24/catalog.json.sha256` | Hash SHA-256 do índice compacto. |
+| `b3-snapshots/2026-08-24/B3_MARGIN_MAXIMUM/MT260824.zip` | Arquivo oficial B3 de Margem Teórica Máxima, usado para a estimativa por posição. |
+| `b3-snapshots/2026-08-24/B3_MARGIN_MAXIMUM/MT260824.zip.sha256` | Hash SHA-256 do arquivo MT oficial. |
+| `server/ingestion/b3MarginOfficialDownload.ts` | Baixa o MT oficial no workflow, com validação de ZIP e hash. |
+| `server/ingestion/b3MarginSnapshot.ts` | Faz o parse auditável do CSV interno do MT. |
+| `server/domain/hedgeOperationSizing.ts` | Calcula quantidade, cobertura, prêmio total, residual e margem teórica estimada. |
+| `client/src/components/HedgeOperationCard.tsx` | Mostra os valores automáticos da operação selecionada. |
+| `client/src/components/NdfSettlementCard.tsx` | Permite NDF parametrizado com nocional/direção iniciais da exposição. |
 
 O arquivo `MANUAL_DEPLOY_CATALOGO_B3.md` é apenas este manual e pode ser mantido no repositório ou omitido do deploy. Não envie `node_modules`, `dist`, `.git` ou arquivos de diagnóstico temporários.
 
@@ -83,7 +90,7 @@ Após o commit aparecer na branch `main`, abra o serviço no Render e escolha **
 https://hedgelab.onrender.com/healthz
 ```
 
-Depois abra `https://hedgelab.onrender.com/exposicoes`, registre uma exposição em USD com data futura, execute o diagnóstico e confira a Etapa 2. Para uma exposição com horizonte `2026-11-10`, o card do futuro de dólar deve mostrar o contrato `DOLX26`, vencimento `2026-11-03` e o preço de ajuste oficial, em vez de permanecer indefinidamente em “Catálogo B3 sendo carregado”.
+Depois abra `https://hedgelab.onrender.com/exposicoes`, registre uma exposição em USD com data futura, execute o diagnóstico e confira a Etapa 2. Para uma exposição com horizonte `2026-11-10`, o card do futuro de dólar deve mostrar o contrato `DOLX26`, vencimento `2026-11-03`, o preço de ajuste oficial e a quantidade calculada. Na operação selecionada, o cartão deve mostrar contratos, quantidade coberta, residual, preço/prêmio, custo de opção quando aplicável e margem teórica máxima quando o MT publicar o instrumento. Para NDF e swap, os módulos bilaterais devem aparecer diretamente na operação e exigir os termos contratuais que não possam ser obtidos de fonte oficial.
 
 ### 5. Verificação da resposta do catálogo
 
@@ -99,11 +106,11 @@ A resposta correta deve conter `associationStatus: "valid"`, `retrievalSource: "
 
 Depois do diagnóstico, o frontend envia uma única consulta com as famílias e os horizontes das alternativas geradas. O backend valida o hash do índice compacto, filtra a família e aplica a regra de seleção: primeiro vencimento exato, depois mesmo mês e, por fim, o próximo vencimento posterior. A operação selecionada reutiliza o candidato do catálogo e publica sua linhagem oficial, sem repetir a coleta de XML.
 
-A interface diferencia três situações. **Efetivo** significa que existe observação oficial compatível e preço/ajuste observável. **Didático** significa que a alternativa pode ser estudada com parâmetros declarados, mas não possui evidência B3 suficiente para MTM ou resultado efetivo. **Bloqueado** significa que a fonte, o contrato, a associação ou o preço obrigatório estão ausentes; nesse caso a aplicação mostra a razão e não substitui a falta por um preço inventado.
+A interface diferencia três situações. **Efetivo** significa que existe observação oficial compatível e preço/ajuste observável. **Didático** significa que a alternativa pode ser estudada com parâmetros declarados, mas não possui evidência B3 suficiente para MTM ou resultado efetivo. **Bloqueado** significa que a fonte, o contrato, a associação ou o preço obrigatório estão ausentes; nesse caso a aplicação mostra a razão e não substitui a falta por um preço inventado. A margem mostrada é a **Margem Teórica Máxima B3 por posição individual**, em BRL, sem netting, garantias ou CORE; não é uma chamada de margem oficial.
 
 ## Validação feita antes da entrega
 
-A correção foi verificada localmente com o check de TypeScript, a suíte completa e o build de produção. O endpoint local com o índice compacto respondeu em aproximadamente 0,09 segundo para o caso DOL, retornando `DOLX26` e o ajuste oficial `5228.133`. A suíte registrou 302 testes aprovados e 6 ignorados; o build terminou com sucesso, mantendo apenas os avisos já existentes sobre Analytics opcional e tamanho do bundle.
+A correção foi verificada localmente com o check de TypeScript, a suíte completa e o build de produção. O endpoint local com o índice compacto respondeu em aproximadamente 0,09 segundo para o caso DOL, retornando `DOLX26` e o ajuste oficial `5228.133`. A suíte final registrou 305 testes aprovados e 6 ignorados; o build terminou com sucesso, mantendo apenas os avisos já existentes sobre Analytics opcional e tamanho do bundle.
 
 ## Diagnóstico da versão anterior
 

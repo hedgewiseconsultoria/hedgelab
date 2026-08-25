@@ -14,6 +14,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { collectB3OfficialReport } from "../server/ingestion/b3OfficialDownload.ts";
+import { collectB3TheoreticalMarginArchive } from "../server/ingestion/b3MarginOfficialDownload.ts";
 
 const REPORT_TYPES = ["BVBG.028.02", "BVBG.086.01", "BVBG.187.01"];
 const OUTPUT_ROOT = resolve(process.env.B3_SNAPSHOT_OUTPUT_DIR ?? "b3-snapshots");
@@ -37,6 +38,15 @@ function candidateDates() {
     if (!isWeekend(date)) candidates.push(date);
   }
   return candidates;
+}
+
+async function collectMarginOne(asOf) {
+  try {
+    const result = await collectB3TheoreticalMarginArchive({ asOf, timeoutMs: 180_000 });
+    return { status: "fulfilled", asOf, reportType: "B3_MARGIN_MAXIMUM", result };
+  } catch (error) {
+    return { status: "rejected", asOf, reportType: "B3_MARGIN_MAXIMUM", reason: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 async function collectOne(reportType, asOf) {
@@ -72,6 +82,17 @@ for (const asOf of candidateDates()) {
     } else {
       summary.push({ asOf, reportType, status: "unavailable", reason: outcome.reason });
     }
+  }
+  const marginOutcome = await collectMarginOne(asOf);
+  if (marginOutcome.status === "fulfilled") {
+    const { result } = marginOutcome;
+    const dir = resolve(OUTPUT_ROOT, asOf, "B3_MARGIN_MAXIMUM");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(resolve(dir, result.archiveFilename), result.buffer);
+    writeFileSync(resolve(dir, `${result.archiveFilename}.sha256`), result.sha256);
+    summary.push({ asOf, reportType: "B3_MARGIN_MAXIMUM", status: "saved", archiveFilename: result.archiveFilename, bytes: result.bytes, sha256: result.sha256, officialDownloadUrl: result.officialDownloadUrl, innerBytes: result.innerBytes });
+  } else {
+    summary.push({ asOf, reportType: "B3_MARGIN_MAXIMUM", status: "unavailable", reason: marginOutcome.reason });
   }
 }
 

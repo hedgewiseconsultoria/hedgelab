@@ -14,10 +14,10 @@ export type NdfSessionSnapshot = {
   calculations: Array<{ calculation_id: string; scenario_id: string; method: string; formula_version: string; calculation_status: "SUCCESS" | "BLOCKED" | "WARNING"; result: Record<string, unknown>; warnings: string[]; calculated_at_utc: string }>;
 };
 
-export default function NdfSettlementCard({ ptaxSale, ptaxLineage, ettjLineage, onSessionSnapshot }: { ptaxSale?: number; ptaxLineage?: Lineage; ettjLineage?: Lineage; onSessionSnapshot?: (snapshot: NdfSessionSnapshot | null) => void }) {
+export default function NdfSettlementCard({ ptaxSale, ptaxLineage, ettjLineage, onSessionSnapshot, initialNotionalUsd, initialDirection }: { ptaxSale?: number; ptaxLineage?: Lineage; ettjLineage?: Lineage; onSessionSnapshot?: (snapshot: NdfSessionSnapshot | null) => void; initialNotionalUsd?: number; initialDirection?: "BUY_USD" | "SELL_USD" }) {
   const [contractId, setContractId] = useState("NDF-CENARIO-001");
-  const [direction, setDirection] = useState<"BUY_USD" | "SELL_USD">("BUY_USD");
-  const [notionalUsd, setNotionalUsd] = useState("100000");
+  const [direction, setDirection] = useState<"BUY_USD" | "SELL_USD">(initialDirection ?? "BUY_USD");
+  const [notionalUsd, setNotionalUsd] = useState(initialNotionalUsd && initialNotionalUsd > 0 ? String(initialNotionalUsd) : "100000");
   const [contractedRate, setContractedRate] = useState("5,2000");
   const [fixingRate, setFixingRate] = useState(() => ptaxSale ? String(ptaxSale) : "");
   const [preRate, setPreRate] = useState("14");

@@ -13,7 +13,7 @@ describe("HedgeOperationCard", () => {
     const onOpenSimulation = vi.fn();
     render(<HedgeOperationCard situation={situation} alternative={alternative} coveragePct={100} onCoverageChange={onCoverageChange} onOpenSimulation={onOpenSimulation} />);
     expect(screen.getByText("Futuro de Ouro")).toBeTruthy();
-    expect(screen.getByText(/80 onças troy/i)).toBeTruthy();
+    expect(screen.getAllByText(/80 onças troy/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("2026-12-18")).toBeTruthy();
     expect(screen.getByText(/Série e cotação B3 ainda não estão vinculadas/i)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "50%" }));
