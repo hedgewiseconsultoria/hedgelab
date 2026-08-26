@@ -55,7 +55,7 @@ export function buildB3MarketDataset(priceRows: B3PriceRow[], instrumentRows: In
       instrumentType: instrument.instrument_type,
       maturity: instrument.maturity,
       optionType: instrument.option_type ?? null,
-      exercisePrice: instrument.exercise_price ?? null,
+      exercisePrice: instrument.exercise_price === null || instrument.exercise_price === undefined ? null : (instrument.family === "DOL" && instrument.instrument_type === "OPTION" && instrument.exercise_price > 100 ? instrument.exercise_price / 1_000 : instrument.exercise_price),
       underlyingInstrumentId: instrument.underlying_id,
       instrumentReportAsOf: instrument.asof,
     };

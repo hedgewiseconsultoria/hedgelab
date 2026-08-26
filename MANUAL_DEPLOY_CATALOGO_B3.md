@@ -26,14 +26,13 @@ O preço acima não é um valor criado pela aplicação: ele está no snapshot d
 | `client/src/components/HedgeAlternativeDecisionMatrixCard.tsx` | Compara a mesma exposição entre alternativas e informa o estado real de cada uma. |
 | `client/src/components/HedgeDashboard.test.tsx` | Atualiza o mock da consulta de catálogo. |
 | `scripts/build-b3-catalog-index.ts` | Gera o índice compacto a partir dos ZIPs oficiais recém-baixados. |
-| `b3-snapshots/2026-08-24/catalog.json` | Índice compacto oficial já gerado para o snapshot disponível. |
+| `b3-snapshots/2026-08-24/catalog.json` | Índice compacto que já incorpora as observações de preço e os dados de Margem Teórica Máxima necessários à operação. |
 | `b3-snapshots/2026-08-24/catalog.json.sha256` | Hash SHA-256 do índice compacto. |
-| `b3-snapshots/2026-08-24/B3_MARGIN_MAXIMUM/MT260824.zip` | Arquivo oficial B3 de Margem Teórica Máxima, usado para a estimativa por posição. |
-| `b3-snapshots/2026-08-24/B3_MARGIN_MAXIMUM/MT260824.zip.sha256` | Hash SHA-256 do arquivo MT oficial. |
+| `b3-snapshots/2026-08-24/B3_MARGIN_MAXIMUM/MT260824.zip` e `.sha256` | Evidência bruta opcional para auditoria; não é necessária para o runtime quando o catálogo compacto está publicado. |
 | `server/ingestion/b3MarginOfficialDownload.ts` | Baixa o MT oficial no workflow, com validação de ZIP e hash. |
 | `server/ingestion/b3MarginSnapshot.ts` | Faz o parse auditável do CSV interno do MT. |
 | `server/domain/hedgeOperationSizing.ts` | Calcula quantidade, cobertura, prêmio total, residual e margem teórica estimada. |
-| `client/src/components/HedgeOperationCard.tsx` | Mostra os valores automáticos da operação selecionada. |
+| `client/src/components/HedgeOperationCard.tsx` | Mostra os valores automáticos da operação selecionada, incluindo a unidade correta do prêmio DOL por USD 1.000. |
 | `client/src/components/NdfSettlementCard.tsx` | Permite NDF parametrizado com nocional/direção iniciais da exposição. |
 
 O arquivo `MANUAL_DEPLOY_CATALOGO_B3.md` é apenas este manual e pode ser mantido no repositório ou omitido do deploy. Não envie `node_modules`, `dist`, `.git` ou arquivos de diagnóstico temporários.
@@ -106,11 +105,13 @@ A resposta correta deve conter `associationStatus: "valid"`, `retrievalSource: "
 
 Depois do diagnóstico, o frontend envia uma única consulta com as famílias e os horizontes das alternativas geradas. O backend valida o hash do índice compacto, filtra a família e aplica a regra de seleção: primeiro vencimento exato, depois mesmo mês e, por fim, o próximo vencimento posterior. A operação selecionada reutiliza o candidato do catálogo e publica sua linhagem oficial, sem repetir a coleta de XML.
 
-A interface diferencia três situações. **Efetivo** significa que existe observação oficial compatível e preço/ajuste observável. **Didático** significa que a alternativa pode ser estudada com parâmetros declarados, mas não possui evidência B3 suficiente para MTM ou resultado efetivo. **Bloqueado** significa que a fonte, o contrato, a associação ou o preço obrigatório estão ausentes; nesse caso a aplicação mostra a razão e não substitui a falta por um preço inventado. A margem mostrada é a **Margem Teórica Máxima B3 por posição individual**, em BRL, sem netting, garantias ou CORE; não é uma chamada de margem oficial.
+Para opções DOL, a cotação de prêmio da B3 é interpretada como valor em BRL por USD 1.000. Assim, a aplicação calcula o custo total como `prêmio observado × 50 USD mil por contrato × quantidade de contratos`. O strike proveniente do cadastro B3 é normalizado para BRL/USD quando a fonte o entrega em escala de pontos milhar; o sistema não altera o prêmio observado nem cria uma cotação ausente.
+
+A interface diferencia três situações. **Efetivo** significa que existe observação oficial compatível e preço/ajuste observável. **Parametrizado** significa que a alternativa pode ser estudada com termos declarados, como NDF e swap, sem que o sistema invente preço, taxa ou contrato. **Bloqueado** significa que a fonte, o contrato, a associação ou o preço obrigatório estão ausentes; nesse caso a aplicação mostra a razão e não substitui a falta por um preço inventado. A margem mostrada é a **Margem Teórica Máxima B3 por posição individual**, em BRL, sem netting, garantias ou CORE; não é uma chamada de margem oficial.
 
 ## Validação feita antes da entrega
 
-A correção foi verificada localmente com o check de TypeScript, a suíte completa e o build de produção. O endpoint local com o índice compacto respondeu em aproximadamente 0,09 segundo para o caso DOL, retornando `DOLX26` e o ajuste oficial `5228.133`. A suíte final registrou 305 testes aprovados e 6 ignorados; o build terminou com sucesso, mantendo apenas os avisos já existentes sobre Analytics opcional e tamanho do bundle.
+A correção foi verificada localmente com o check de TypeScript, a suíte completa e o build de produção. A suíte final registrou **306 testes aprovados e 6 ignorados**; o build terminou com sucesso, mantendo apenas os avisos não bloqueantes já existentes sobre Analytics opcional e tamanho do bundle. Também foi validado o caso de opção DOL `DOLV26C005350`: prêmio observado de `R$ 28,38`, 30 contratos para uma exposição de USD 1,5 milhão e custo total de `R$ 42.570`, sem a multiplicação indevida por 1.000. O strike exibido é normalizado para `R$ 5,35` quando a fonte cadastral entrega `5350` em escala milhar.
 
 ## Diagnóstico da versão anterior
 

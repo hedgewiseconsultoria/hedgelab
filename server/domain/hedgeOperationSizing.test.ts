@@ -18,6 +18,13 @@ describe("calculateHedgeOperationSizing", () => {
     expect(result.status).toBe("effective");
   });
 
+  it("converte corretamente o prêmio DOL cotado por USD 1.000 para custo total", () => {
+    const result = calculateHedgeOperationSizing({ situation: situation({ declared_quantity: 1_500_000, situation_kind: "USD_PAYABLE" }), alternative: alternative("B3_DOL_OPTION"), coveragePct: 100, observation: observation({ symbol: "DOLV26C005350", instrumentType: "OPTION", optionType: "CALL", exercisePrice: 5_35, adjustedQuote: 28.38 }), marginTheoreticalMax: 783.99 });
+    expect(result.contracts).toBe(30);
+    expect(result.premiumValue).toBeCloseTo(42_570, 6);
+    expect(result.premiumValue).not.toBe(42_570_000);
+  });
+
   it("calcula custo total do prêmio de opção sem substituir ausência por preço didático", () => {
     const result = calculateHedgeOperationSizing({ situation: situation({ commodity_reference: "CCM", situation_kind: "COMMODITY_SALE", declared_quantity: 1_000, declared_currency: "BRL" }), alternative: alternative("B3_COMMODITY_OPTION"), coveragePct: 100, observation: observation({ symbol: "CCMX26P006800", instrumentType: "OPTION", optionType: "PUT", exercisePrice: 680, adjustedQuote: 0.05 }), marginTheoreticalMax: 0.05 });
     expect(result.contracts).toBe(3);

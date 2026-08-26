@@ -51,6 +51,16 @@ export type B3ContractCatalogSnapshot = {
   };
 };
 
+function normalizeCatalogSnapshot(snapshot: B3ContractCatalogSnapshot): B3ContractCatalogSnapshot {
+  return {
+    ...snapshot,
+    rows: snapshot.rows.map(row => ({
+      ...row,
+      exercisePrice: row.family === "DOL" && row.instrumentType === "OPTION" && row.exercisePrice !== null && row.exercisePrice > 100 ? row.exercisePrice / 1_000 : row.exercisePrice,
+    })),
+  };
+}
+
 type CacheConfig = {
   owner: string;
   repo: string;
@@ -99,7 +109,7 @@ export async function readB3ContractCatalogSnapshot(input: { asOf: string; timeo
       if (!expectedHash || expectedHash !== actualHash) return null;
       const parsed = JSON.parse(bytes.toString("utf8")) as B3ContractCatalogSnapshot;
       if (parsed.schemaVersion !== "1.0.0" || parsed.asOf !== input.asOf || !Array.isArray(parsed.rows) || !parsed.lineage?.price || !parsed.lineage?.instrument) return null;
-      return parsed;
+      return normalizeCatalogSnapshot(parsed);
     } catch {
       // O workflow ainda pode estar em processo de baixar ou gerar o índice local.
     }

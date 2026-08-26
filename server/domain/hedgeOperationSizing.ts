@@ -50,7 +50,7 @@ function productSpec(alternative: CanonicalHedgeAlternativeRow["alternative_kind
   switch (alternative) {
     case "B3_DOL_FUTURE": return { quantity: B3_FX_FUTURE_SPECS.DOL.contractSizeUsd, unit: "USD", priceLabel: "ajuste/preço B3 por USD 1.000" };
     case "B3_WDO_FUTURE": return { quantity: B3_FX_FUTURE_SPECS.WDO.contractSizeUsd, unit: "USD", priceLabel: "ajuste/preço B3 por USD 1.000" };
-    case "B3_DOL_OPTION": return { quantity: B3_FX_OPTION_SPEC.contractSizeUsd, unit: "USD", priceLabel: "prêmio observado B3 por USD" };
+    case "B3_DOL_OPTION": return { quantity: B3_FX_OPTION_SPEC.contractSizeUsd, unit: "USD", priceLabel: "prêmio observado B3 por USD 1.000", premiumScale: 1_000 };
     case "B3_COMMODITY_FUTURE": return null;
     case "B3_COMMODITY_OPTION": return null;
     default: return null;
@@ -151,7 +151,7 @@ export function calculateHedgeOperationSizing(input: {
       residualQuantity: null,
       coverageRatio: null,
       observedPrice,
-      priceLabel: observedPrice === null ? null : isOption ? "prêmio observado B3" : "preço/ajuste observado B3",
+      priceLabel: observedPrice === null ? null : alternativeKind === "B3_DOL_OPTION" ? "prêmio observado B3 por USD 1.000" : isOption ? "prêmio observado B3" : "preço/ajuste observado B3",
       strike: input.observation?.exercisePrice ?? null,
       optionType: input.observation?.optionType ?? null,
       premiumValue: isOption ? observedPrice : null,
@@ -176,7 +176,7 @@ export function calculateHedgeOperationSizing(input: {
       residualQuantity: null,
       coverageRatio: null,
       observedPrice,
-      priceLabel: observedPrice === null ? null : isOption ? "prêmio observado B3" : "preço/ajuste observado B3",
+      priceLabel: observedPrice === null ? null : alternativeKind === "B3_DOL_OPTION" ? "prêmio observado B3 por USD 1.000" : isOption ? "prêmio observado B3" : "preço/ajuste observado B3",
       strike: input.observation?.exercisePrice ?? null,
       optionType: input.observation?.optionType ?? null,
       premiumValue: isOption ? observedPrice : null,
@@ -194,6 +194,7 @@ export function calculateHedgeOperationSizing(input: {
   const residualQuantity = input.situation.declared_quantity - hedgedQuantity;
   const marginPerContract = input.marginTheoreticalMax ?? null;
   const marginEstimate = marginPerContract === null ? null : contracts * marginPerContract;
+  const premiumScale = alternativeKind === "B3_DOL_OPTION" ? 1_000 : 1;
   const hasPrice = observedPrice !== null && Number.isFinite(observedPrice);
   const status: HedgeOperationSizingStatus = hasPrice ? "effective" : "parameterized";
 
@@ -209,10 +210,10 @@ export function calculateHedgeOperationSizing(input: {
     residualQuantity,
     coverageRatio: input.situation.declared_quantity === 0 ? null : hedgedQuantity / input.situation.declared_quantity,
     observedPrice,
-    priceLabel: isOption ? "prêmio observado B3" : "preço/ajuste observado B3",
+    priceLabel: alternativeKind === "B3_DOL_OPTION" ? "prêmio observado B3 por USD 1.000" : isOption ? "prêmio observado B3" : "preço/ajuste observado B3",
     strike: input.observation?.exercisePrice ?? null,
     optionType: input.observation?.optionType ?? null,
-    premiumValue: isOption && observedPrice !== null ? observedPrice * unitQuantity * contracts : null,
+    premiumValue: isOption && observedPrice !== null ? observedPrice * (unitQuantity / premiumScale) * contracts : null,
     marginPerContract,
     marginEstimate,
     marginStatus: marginPerContract === null ? "unavailable" : "official_theoretical_maximum",
