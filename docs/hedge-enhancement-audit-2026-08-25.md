@@ -26,9 +26,10 @@ A página oficial da B3 define a **margem teórica máxima** como o valor requer
 
 Portanto, a interface deve usar os rótulos abaixo:
 
-* **Estimativa pública por contrato:** margem teórica máxima B3 encontrada para a unidade do instrumento, multiplicada pela quantidade, com data-base e arquivo/hash.
-* **Estimativa de posição:** soma ou aproximação por posição individual, sem netting entre instrumentos e sem garantias.
-* **CORE não calculado:** aviso obrigatório de que o valor não representa a chamada oficial de margem da carteira.
+* **MT B3 de referência:** margem teórica máxima publicada para a unidade do instrumento, com data-base e arquivo/hash; não é multiplicada automaticamente pela quantidade.
+* **Margem da carteira:** resultado total copiado do simulador oficial B3 para a mesma carteira, posição, preço e data.
+* **Margem média auxiliar:** margem da carteira dividida pela quantidade de contratos, apenas para leitura; não substitui o resultado do simulador.
+* **CORE não calculado:** aviso obrigatório de que o valor do simulador é uma estimativa de chamada e que a margem efetiva continua sujeita à corretora e à carteira real.
 * **Não aplicável B3:** NDF e swap OTC não devem receber uma “margem B3” inventada; podem mostrar que a garantia/colateral depende do contrato e da contraparte.
 
 ## Fontes oficiais
@@ -45,9 +46,9 @@ A página oficial de Pesquisa por Pregão identifica o arquivo como `MT{YYMMDD}.
 
 ## Implementação funcional adicionada
 
-A operação principal agora calcula a quantidade de contratos pela unidade oficial do produto e arredonda para cima para não subcobrir o percentual escolhido. Para opções, o preço observado permanece unitário e o cartão calcula separadamente o custo total do prêmio como prêmio observado × unidade do contrato × número de contratos. Strike e tipo (call/put) são exibidos quando constarem na observação B3.
+A operação principal agora calcula a quantidade de contratos pela unidade oficial do produto, respeita o lote mínimo negociável — cinco contratos para DOL e um para WDO nas fichas cadastradas — e arredonda para cima para não subcobrir o percentual escolhido. Para opções, o preço observado permanece unitário e o cartão calcula separadamente o custo total do prêmio como prêmio observado × unidade do contrato × número de contratos. Strike e tipo (call/put) são exibidos quando constarem na observação B3.
 
-A margem exibida como **Margem teórica máxima** vem do arquivo oficial MT da B3, associado por `instrumentId` e preservado no catálogo compacto com hash do arquivo. Ela é uma estimativa individual por contrato, em BRL, sem netting, garantias, colateral ou chamada efetiva do CORE. A ausência do arquivo MT mantém a margem bloqueada, sem percentual inventado.
+A MT B3 vem do arquivo oficial, associado por `instrumentId` e preservado no catálogo compacto com hash do arquivo, mas permanece como **referência técnica**, não como margem operacional multiplicável por contratos. A margem da posição no fluxo principal é o total informado a partir do [simulador oficial B3](https://simulador.b3.com.br/), para a mesma carteira, série, quantidade, direção, preço e data. Sem esse resultado, a margem operacional permanece bloqueada, sem percentual ou fator inventado; a tela calcula a margem média por contrato apenas como informação auxiliar.
 
 NDF e swap cambial passaram a aparecer diretamente na operação selecionada. O NDF recebe nocional e direção iniciais derivados da exposição, mas taxa contratada, fixing, PRE, dias úteis e identificador continuam editáveis porque são termos do contrato bilateral. O swap exige o contrato/termos do usuário e não recebe margem B3; a garantia depende da contraparte.
 

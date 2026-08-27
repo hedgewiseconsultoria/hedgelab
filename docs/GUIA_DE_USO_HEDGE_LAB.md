@@ -76,6 +76,10 @@ Abra **Cenários** somente depois de registrar a exposição e confirmar quais d
 4. Execute o módulo aplicável: cenário FX/PTAX, NDF com contrato, ajuste DI1, ajuste DOL/WDO, exercício intrínseco de opção ou referência nocional de swap, conforme os insumos disponíveis.
 5. Leia as limitações do resultado antes de comparar estratégias.
 
+Para futuros B3, a quantidade respeita o tamanho econômico do contrato e o **lote mínimo negociável** cadastrado. No caso do DOL, uma exposição que matematicamente exigiria menos de cinco contratos será apresentada com **cinco contratos**, conforme a regra operacional cadastrada; no WDO, o mínimo cadastrado é de um contrato.
+
+A **margem necessária da carteira** não deve ser obtida multiplicando automaticamente a Margem Teórica Máxima por contrato. Para obter essa referência, abra o [simulador oficial de margem da B3](https://simulador.b3.com.br/), monte a mesma posição — símbolo, vencimento, direção, quantidade, preço e data — e copie o resultado total retornado para o campo **Resultado do simulador oficial B3** na operação em análise. O Hedge Lab preserva esse total e calcula apenas a margem média por contrato como informação auxiliar. Sem esse resultado, a margem operacional permanece bloqueada; a MT publicada pela B3 pode continuar disponível como referência técnica, mas não é apresentada como chamada de margem.
+
 O painel pode apresentar futuros, NDF, swaps, opções e estruturas de DI. Isso não significa que todos possuam precificação completa. Por exemplo, prêmio, volatilidade implícita e Greeks das opções continuam bloqueados sem observações e métodos compatíveis; MTM, DV01 e curvas derivadas também não são inferidos.
 
 > **Cenário didático não é observação de mercado.** Informe parâmetros de cenário de forma explícita e mantenha a data-base das observações oficiais separada dos choques hipotéticos.

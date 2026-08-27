@@ -11,11 +11,35 @@ const observation = (overrides: Record<string, unknown> = {}) => ({ symbol: "WDO
 
 describe("calculateHedgeOperationSizing", () => {
   it("arredonda contratos para cima e calcula a margem individual B3", () => {
-    const result = calculateHedgeOperationSizing({ situation: situation(), alternative: alternative("B3_WDO_FUTURE"), coveragePct: 100, observation: observation(), marginTheoreticalMax: 125.5 });
+    const result = calculateHedgeOperationSizing({ situation: situation(), alternative: alternative("B3_WDO_FUTURE"), coveragePct: 100, observation: observation(), marginTheoreticalMax: 125.5, marginSimulatorResult: 1_882.5 });
     expect(result.contracts).toBe(15);
     expect(result.hedgedQuantity).toBe(150_000);
     expect(result.marginEstimate).toBe(1882.5);
     expect(result.status).toBe("effective");
+  });
+
+  it("dimensiona proteção DI1 por DV01 com taxa e dias úteis da observação B3", () => {
+    const result = calculateHedgeOperationSizing({ situation: situation({ declared_quantity: 10_000_000, declared_currency: "BRL", horizon_date: "2026-10-15", situation_kind: "CDI_LIABILITY" as CanonicalEconomicSituationRow["situation_kind"] }), alternative: alternative("B3_DI1_FUTURE"), coveragePct: 100, observation: observation({ symbol: "DI1V26", instrumentType: "FUTURE", maturity: "2026-10-01", tradeDate: "2026-08-25", adjustedQuote: 98_000, adjustedQuoteTax: 14.5 }) });
+    expect(result.status).toBe("effective");
+    expect(result.contracts).toBeGreaterThan(0);
+    expect(result.minimumContracts).toBe(1);
+    expect(result.notes.join(" ")).toMatch(/DV01 do contrato/i);
+    expect(result.blockingReason).toBeNull();
+  });
+
+  it("respeita o lote mínimo de 5 contratos para DOL mesmo em exposição menor", () => {
+    const result = calculateHedgeOperationSizing({ situation: situation({ declared_quantity: 50_000 }), alternative: alternative("B3_DOL_FUTURE"), coveragePct: 100, observation: observation({ symbol: "DOLV26" }), marginTheoreticalMax: 5_000 });
+    expect(result.rawContracts).toBe(1);
+    expect(result.contracts).toBe(5);
+    expect(result.hedgedQuantity).toBe(250_000);
+    expect(result.minimumContracts).toBe(5);
+  });
+
+  it("usa o total informado pelo simulador B3 para a margem da carteira", () => {
+    const result = calculateHedgeOperationSizing({ situation: situation(), alternative: alternative("B3_WDO_FUTURE"), coveragePct: 100, observation: observation(), marginTheoreticalMax: 125.5, marginSimulatorResult: 1_234.56 });
+    expect(result.marginEstimate).toBe(1_234.56);
+    expect(result.marginPerContract).toBeCloseTo(82.304, 6);
+    expect(result.marginStatus).toBe("official_simulator_result");
   });
 
   it("converte corretamente o prêmio DOL cotado por USD 1.000 para custo total", () => {
