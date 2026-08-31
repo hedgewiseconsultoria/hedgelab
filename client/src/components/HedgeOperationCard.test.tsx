@@ -2,6 +2,7 @@
 import React from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+vi.mock("@/lib/trpc", () => ({ trpc: { hedge: { calculateB3RiskMargin: { useMutation: () => ({ data: undefined, isPending: false, isError: false, error: null, mutate: vi.fn() }) } } } }));
 import HedgeOperationCard from "./HedgeOperationCard";
 
 const situation = { economic_situation_id: "sit-gold", exposure_id: "exp-gold", situation_kind: "COMMODITY_PURCHASE" as const, description: "Compra de ouro para produção", declared_quantity: 80, declared_currency: "USD" as const, horizon_date: "2026-12-18", commodity_reference: "GLD" as const, indexer: null, origin: "USER_DECLARED" as const, captured_at_utc: "2026-08-22T00:00:00.000Z" };
