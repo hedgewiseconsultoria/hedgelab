@@ -1,0 +1,55 @@
+import { describe, expect, it } from "vitest";
+import { attachCanonicalB3ObservationLink, getB3ObservationCompatibility } from "./canonicalB3ObservationLink";
+import { emptyCanonicalHedgeDataframes } from "./canonicalHedgeDataframes";
+
+describe("vínculo canônico de observação B3", () => {
+  it("declara compatibilidades sem inferir família ou tipo por ticker", () => {
+    const base = { alternative_id: "alt", exposure_id: "exp", label: "alternativa", risk_factor: "USD_BRL" as const, hedge_direction: "BUY" as const, eligibility_status: "eligible_with_market_data" as const, required_data: [], blocking_reason: null, source_ids: ["B3_PUBLIC_FILES"] as const, method_version: "hedge-alternatives-v1" as const, economic_situation_id: "sit", risk_factor_id: "risk", origin: "CATALOG_DERIVED" as const };
+    expect(getB3ObservationCompatibility({ ...base, alternative_kind: "B3_DOL_FUTURE" }, undefined)).toEqual({ families: ["DOL"], instrumentTypes: ["FUTURE"] });
+    expect(getB3ObservationCompatibility({ ...base, alternative_kind: "B3_DI1_FUTURE", risk_factor: "CDI_RATE" }, undefined)).toEqual({ families: ["DI1"], instrumentTypes: ["FUTURE"] });
+    expect(getB3ObservationCompatibility({ ...base, alternative_kind: "B3_FRA_DI1", risk_factor: "CDI_RATE" }, undefined)).toEqual({ families: ["DI1"], instrumentTypes: ["FUTURE"] });
+    expect(getB3ObservationCompatibility({ ...base, alternative_kind: "B3_DI1_OPTION", risk_factor: "CDI_RATE" }, undefined)).toEqual({ families: ["DI1"], instrumentTypes: ["OPTION", "FUTURE"] });
+    expect(getB3ObservationCompatibility({ ...base, alternative_kind: "B3_COMMODITY_FUTURE", risk_factor: "B3_COMMODITY_PRICE" }, { economic_situation_id: "sit", exposure_id: "exp", situation_kind: "COMMODITY_PURCHASE", description: "Compra de soja", declared_quantity: 1, declared_currency: "BRL", horizon_date: "2026-09-01", commodity_reference: "SOY", indexer: null, origin: "USER_DECLARED", captured_at_utc: "2026-08-18T00:00:00.000Z" })).toEqual({ families: ["SOY"], instrumentTypes: ["FUTURE"] });
+    expect(getB3ObservationCompatibility({ ...base, alternative_kind: "OTC_NDF_OR_TERM" }, undefined)).toBeNull();
+  });
+
+  it("publica a série escolhida apenas para alternativa B3 e data-base comum", () => {
+    const dataframes = emptyCanonicalHedgeDataframes();
+    dataframes.hedge_alternative_dataframe = [{ alternative_id: "alt-dol", exposure_id: "exp", alternative_kind: "B3_DOL_FUTURE", label: "DOL", risk_factor: "USD_BRL", hedge_direction: "BUY", eligibility_status: "eligible_with_market_data", required_data: [], blocking_reason: null, source_ids: ["B3_PUBLIC_FILES"], method_version: "hedge-alternatives-v1", economic_situation_id: "sit", risk_factor_id: "risk", origin: "CATALOG_DERIVED" }];
+    const result = attachCanonicalB3ObservationLink(dataframes, {
+      alternativeId: "alt-dol",
+      candidate: { tradeDate: "2026-08-17", symbol: "DOLU26", instrumentId: "ID-DOL", marketIdentifierCode: "IMERC", reportType: "BVBG.086.01", sourceMessageType: null, tradeQuantity: null, marketDataStreamId: null, nationalFinancialVolume: null, nationalFinancialVolumeCurrency: null, internationalFinancialVolume: null, internationalFinancialVolumeCurrency: null, openInterest: null, financialInstrumentQuantity: null, bestBidPrice: null, bestBidPriceCurrency: null, bestAskPrice: null, bestAskPriceCurrency: null, firstPrice: null, firstPriceCurrency: null, minimumPrice: null, minimumPriceCurrency: null, maximumPrice: null, maximumPriceCurrency: null, tradeAveragePrice: null, tradeAveragePriceCurrency: null, lastPrice: 5.4, lastPriceCurrency: null, regularTransactionsQuantity: null, nonRegularTransactionsQuantity: null, regularTradedContracts: null, nonRegularTradedContracts: null, nationalRegularVolume: null, nationalRegularVolumeCurrency: null, nationalNonRegularVolume: null, nationalNonRegularVolumeCurrency: null, internationalRegularVolume: null, internationalRegularVolumeCurrency: null, adjustedQuote: 5.39, adjustedQuoteCurrency: null, adjustedQuoteTax: null, adjustedQuoteTaxCurrency: null, adjustedQuoteSituation: null, previousAdjustedQuote: null, previousAdjustedQuoteCurrency: null, previousAdjustedQuoteTax: null, previousAdjustedQuoteTaxCurrency: null, previousAdjustedQuoteSituation: null, oscillationPercentage: null, variationPoints: null, variationPointsCurrency: null, equivalentValue: null, equivalentValueCurrency: null, adjustedValueContract: null, adjustedValueContractCurrency: null, maximumTradeLimit: null, maximumTradeLimitCurrency: null, minimumTradeLimit: null, minimumTradeLimitCurrency: null, daysToSettlement: null, sourceFile: "BVBG.086.01.xml", sourceHashSha256: "a".repeat(64), family: "DOL", instrumentType: "FUTURE", maturity: "2026-09-01", optionType: null, exercisePrice: null, underlyingInstrumentId: null, instrumentReportAsOf: "2026-08-17" },
+      priceSource: { reportType: "BVBG.086.01", sourceUrl: "https://www.b3.com.br/pesquisapregao/download", sourceFile: "BVBG.086.01.xml", sourceAsOf: "2026-08-17", sourceHashSha256: "a".repeat(64), normalizedCsvStorageKey: "b3/normalized/price.csv", normalizedCsvSha256: "c".repeat(64), normalizedManifestStorageKey: "b3/normalized/price.manifest.json" },
+      instrumentSource: { sourceUrl: "https://www.b3.com.br/pesquisapregao/download", sourceFile: "BVBG.028.02.xml", sourceAsOf: "2026-08-17", sourceHashSha256: "b".repeat(64), normalizedCsvStorageKey: "b3/normalized/instrument.csv", normalizedCsvSha256: "d".repeat(64), normalizedManifestStorageKey: "b3/normalized/instrument.manifest.json" },
+      selectedAtUtc: "2026-08-18T00:00:00.000Z",
+    });
+    expect(result.b3_observation_link_dataframe).toMatchObject([{ alternative_id: "alt-dol", symbol: "DOLU26", family: "DOL", association_status: "valid_same_asof" }]);
+    const incompatible = attachCanonicalB3ObservationLink(dataframes, {
+      alternativeId: "alt-dol",
+      candidate: { tradeDate: "2026-08-17", symbol: "DI1F27", instrumentId: "ID-DI1", family: "DI1", instrumentType: "FUTURE", instrumentReportAsOf: "2026-08-17" } as never,
+      priceSource: { reportType: "BVBG.086.01", sourceUrl: "https://www.b3.com.br/pesquisapregao/download", sourceFile: "BVBG.086.01.xml", sourceAsOf: "2026-08-17", sourceHashSha256: "a".repeat(64), normalizedCsvStorageKey: "b3/normalized/price.csv", normalizedCsvSha256: "c".repeat(64), normalizedManifestStorageKey: "b3/normalized/price.manifest.json" },
+      instrumentSource: { sourceUrl: "https://www.b3.com.br/pesquisapregao/download", sourceFile: "BVBG.028.02.xml", sourceAsOf: "2026-08-17", sourceHashSha256: "b".repeat(64), normalizedCsvStorageKey: "b3/normalized/instrument.csv", normalizedCsvSha256: "d".repeat(64), normalizedManifestStorageKey: "b3/normalized/instrument.manifest.json" },
+      selectedAtUtc: "2026-08-18T00:00:00.000Z",
+    });
+    expect(incompatible).toBe(dataframes);
+    expect(incompatible.b3_observation_link_dataframe).toEqual([]);
+  });
+
+  it("preserva opção DI1 e futuro-objeto como evidências distintas da mesma alternativa", () => {
+    const frames = emptyCanonicalHedgeDataframes();
+    frames.hedge_alternative_dataframe = [{ alternative_id: "alt-di-option", exposure_id: "exp", alternative_kind: "B3_DI1_OPTION", label: "Opção DI", risk_factor: "CDI_RATE", hedge_direction: "SELL", eligibility_status: "blocked", required_data: [], blocking_reason: "pendente", source_ids: ["B3_PUBLIC_FILES", "B3_PRODUCT_SPECIFICATION"], method_version: "hedge-alternatives-v1", economic_situation_id: "sit", risk_factor_id: "risk", origin: "CATALOG_DERIVED" }];
+    const sources = { priceSource: { reportType: "BVBG.086.01", sourceUrl: "https://www.b3.com.br", sourceFile: "price.xml", sourceAsOf: "2026-08-17", sourceHashSha256: "a".repeat(64), normalizedCsvStorageKey: "price.csv", normalizedCsvSha256: "b".repeat(64), normalizedManifestStorageKey: "price.manifest" }, instrumentSource: { sourceUrl: "https://www.b3.com.br", sourceFile: "instrument.xml", sourceAsOf: "2026-08-17", sourceHashSha256: "c".repeat(64), normalizedCsvStorageKey: "instrument.csv", normalizedCsvSha256: "d".repeat(64), normalizedManifestStorageKey: "instrument.manifest" }, selectedAtUtc: "2026-08-18T00:00:00.000Z" };
+    const option = attachCanonicalB3ObservationLink(frames, { alternativeId: "alt-di-option", ...sources, candidate: { tradeDate: "2026-08-17", instrumentReportAsOf: "2026-08-17", symbol: "D11X26", instrumentId: "OPT-D11", family: "DI1", instrumentType: "OPTION", maturity: "2026-10-01", optionType: "CALL", exercisePrice: 13.5 } as never });
+    const both = attachCanonicalB3ObservationLink(option, { alternativeId: "alt-di-option", ...sources, candidate: { tradeDate: "2026-08-17", instrumentReportAsOf: "2026-08-17", symbol: "DI1F27", instrumentId: "FUT-DI1", family: "DI1", instrumentType: "FUTURE", maturity: "2027-01-01", optionType: null, exercisePrice: null } as never });
+    expect(both.b3_observation_link_dataframe).toEqual(expect.arrayContaining([expect.objectContaining({ symbol: "D11X26", instrument_type: "OPTION" }), expect.objectContaining({ symbol: "DI1F27", instrument_type: "FUTURE" })]));
+  });
+
+  it("preserva dois vencimentos futuros DI1 na estrutura FRA", () => {
+    const frames = emptyCanonicalHedgeDataframes();
+    frames.hedge_alternative_dataframe = [{ alternative_id: "alt-fra", exposure_id: "exp", alternative_kind: "B3_FRA_DI1", label: "FRA", risk_factor: "CDI_RATE", hedge_direction: "SELL", eligibility_status: "blocked", required_data: [], blocking_reason: "pendente", source_ids: ["B3_PUBLIC_FILES", "B3_PRODUCT_SPECIFICATION"], method_version: "hedge-alternatives-v1", economic_situation_id: "sit", risk_factor_id: "risk", origin: "CATALOG_DERIVED" }];
+    const sources = { priceSource: { reportType: "BVBG.086.01", sourceUrl: "https://www.b3.com.br", sourceFile: "price.xml", sourceAsOf: "2026-08-17", sourceHashSha256: "a".repeat(64), normalizedCsvStorageKey: "price.csv", normalizedCsvSha256: "b".repeat(64), normalizedManifestStorageKey: "price.manifest" }, instrumentSource: { sourceUrl: "https://www.b3.com.br", sourceFile: "instrument.xml", sourceAsOf: "2026-08-17", sourceHashSha256: "c".repeat(64), normalizedCsvStorageKey: "instrument.csv", normalizedCsvSha256: "d".repeat(64), normalizedManifestStorageKey: "instrument.manifest" }, selectedAtUtc: "2026-08-18T00:00:00.000Z" };
+    const first = attachCanonicalB3ObservationLink(frames, { alternativeId: "alt-fra", ...sources, candidate: { tradeDate: "2026-08-17", instrumentReportAsOf: "2026-08-17", symbol: "DI1F27", instrumentId: "DI1-2027", family: "DI1", instrumentType: "FUTURE", maturity: "2027-01-01" } as never });
+    const both = attachCanonicalB3ObservationLink(first, { alternativeId: "alt-fra", ...sources, candidate: { tradeDate: "2026-08-17", instrumentReportAsOf: "2026-08-17", symbol: "DI1F28", instrumentId: "DI1-2028", family: "DI1", instrumentType: "FUTURE", maturity: "2028-01-01" } as never });
+    expect(both.b3_observation_link_dataframe).toEqual(expect.arrayContaining([expect.objectContaining({ symbol: "DI1F27" }), expect.objectContaining({ symbol: "DI1F28" })]));
+  });
+});

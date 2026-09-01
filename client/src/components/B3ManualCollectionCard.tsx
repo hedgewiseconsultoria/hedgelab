@@ -1,0 +1,63 @@
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { trpc } from "@/lib/trpc";
+import { Archive, CheckCircle2, CircleAlert, ExternalLink, FileKey2, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+
+const B3_REPORTS = ["BVBG.086.01", "BVBG.187.01", "BVBG.028.02"] as const;
+type B3Report = (typeof B3_REPORTS)[number];
+
+function formatBytes(bytes: number) {
+  return bytes < 1_000_000 ? `${(bytes / 1_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} kB` : `${(bytes / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB`;
+}
+function lastBusinessDate() {
+  const value = new Date();
+  value.setDate(value.getDate() - 1);
+  while (value.getDay() === 0 || value.getDay() === 6) value.setDate(value.getDate() - 1);
+  return value.toISOString().slice(0, 10);
+}
+
+export type B3ManualLineageRow = { source_id: "B3_PUBLIC_FILES"; source_url: string; source_file: string; extracted_at_utc: string; source_asof: string | null; source_hash_sha256: string | null; parser_version: string; validation_status: "valid" | "warning" | "invalid" };
+export type B3NormalizedArtifact = { report_type: B3Report; source_asof: string; source_file: string; validation_status: "valid" | "warning" | "invalid"; csv: { storage_key: string; storage_url: string; sha256: string }; manifest: { storage_key: string; storage_url: string } };
+
+/** Coleta oficial com disponibilidade por boletim; nenhum erro de fonte vira dado ou cálculo substituto. */
+export default function B3ManualCollectionCard({ onLineage, onNormalizations, autoCollect = false }: { onLineage?: (rows: B3ManualLineageRow[]) => void; onNormalizations?: (rows: B3NormalizedArtifact[]) => void; autoCollect?: boolean }) {
+  const [asOf, setAsOf] = useState(lastBusinessDate);
+  const [reportTypes, setReportTypes] = useState<B3Report[]>([...B3_REPORTS]);
+  const [normalize, setNormalize] = useState(false);
+  const autoStarted = useRef(false);
+  const collection = trpc.marketData.collectB3Reports.useMutation({
+    onError: () => toast.error("A atualização oficial não pôde ser concluída. Nenhum dado B3 foi liberado nesta sessão."),
+    onSuccess: result => {
+      const available = result.reports.filter(report => report.availability === "available").length;
+      if (available === result.reports.length) toast.success(`${available} boletim(ns) B3 verificado(s), com hashes e linhagem preservados.`);
+      else toast.warning(`${available} de ${result.reports.length} boletim(ns) B3 ficaram disponíveis. Os demais permanecem bloqueados, sem dados substitutos.`);
+    },
+  });
+  const collect = (types = reportTypes, collectionMode: "automatic" | "manual" = "manual") => collection.mutate({ asOf, reportTypes: types, normalize: autoCollect ? false : normalize, persistRaw: false, collectionMode });
+  useEffect(() => { if (!autoCollect || autoStarted.current) return; autoStarted.current = true; collect([...B3_REPORTS], "automatic"); }, [asOf, autoCollect]);
+  useEffect(() => {
+    if (!collection.data || !onLineage) return;
+    const extractedAtUtc = new Date().toISOString();
+    onLineage(collection.data.reports.filter(report => report.availability === "available").flatMap(report => report.xmlFiles.map(xml => ({ source_id: "B3_PUBLIC_FILES" as const, source_url: report.officialDownloadUrl!, source_file: xml.filename, extracted_at_utc: extractedAtUtc, source_asof: report.sourceAsOf, source_hash_sha256: xml.sha256, parser_version: "b3-official-download-v1", validation_status: report.validationStatus === "downloaded" ? "valid" as const : "warning" as const }))));
+  }, [collection.data, onLineage]);
+  useEffect(() => {
+    if (!collection.data || !onNormalizations) return;
+    onNormalizations(collection.data.reports.filter(report => report.availability === "available").flatMap(report => report.normalizations.map(normalization => ({ report_type: report.reportType, source_asof: report.sourceAsOf, source_file: normalization.sourceFile, validation_status: normalization.validationStatus, csv: { storage_key: normalization.csv.storageKey, storage_url: normalization.csv.storageUrl, sha256: normalization.csv.sha256 }, manifest: { storage_key: normalization.manifest.storageKey, storage_url: normalization.manifest.storageUrl } }))));
+  }, [collection.data, onNormalizations]);
+
+  const availableCount = collection.data?.reports.filter(report => report.availability === "available").length ?? 0;
+  return <Card className="mt-7 rounded-2xl border-[#cce4df] bg-white shadow-[0_20px_45px_-38px_rgba(16,58,58,.35)]">
+    <CardHeader className="border-b border-[#e8f1ef] bg-[#f6fbf9] pb-4"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#5f8981]">Disponibilidade oficial</p><CardTitle className="mt-1 text-base text-[#173c3b]">Boletins B3 e evidências da sessão</CardTitle></div><Archive className="h-5 w-5 text-[#21826d]" /></div><p className="mt-3 text-xs leading-5 text-[#5d7875]">A fonte é exclusivamente o fluxo oficial da B3. Cada boletim passa por retentativas limitadas, validação de ZIP/XML e hash. Falha de fonte não cria preço, curva ou DataFrame alternativo.</p></CardHeader>
+    <CardContent className="p-5">
+      {autoCollect ? <div className="rounded-xl border border-[#cce4df] bg-[#f2fbf7] p-4"><p className="text-sm font-semibold text-[#1d6257]">Atualização automática dos três boletins oficiais</p><p className="mt-1 text-xs leading-5 text-[#466962]">A abertura verifica PriceReport, relatório simplificado e InstrumentReport na última data útil e carrega primeiro somente metadados, hashes e linhagem. A normalização dos DataFrames ocorre sob demanda ao vincular uma operação, reduzindo o tempo inicial da tela. Caso a fonte esteja lenta, a abertura encerra a tentativa com segurança e oferece uma nova tentativa manual.</p><div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium text-[#2f7669]">{collection.isPending ? <><Loader2 className="h-4 w-4 animate-spin" />Baixando, verificando e calculando hashes…</> : collection.data ? <>{availableCount}/{collection.data.reports.length} boletim(ns) oficial(is) disponível(is) nesta sessão.</> : <><Loader2 className="h-4 w-4 animate-spin" />Iniciando atualização oficial…</>} {collection.data?.availability !== "available" && !collection.isPending && <Button size="sm" variant="outline" onClick={() => collect([...B3_REPORTS], "manual")} className="ml-1 border-[#b9dcd2] bg-white text-[#1d6257]"><RefreshCw /> Tentar novamente</Button>}</div></div> : <><div className="grid gap-4 md:grid-cols-[190px_1fr_auto] md:items-end"><div><Label htmlFor="b3-collection-asof" className="text-xs text-[#496762]">Data-base</Label><Input id="b3-collection-asof" type="date" value={asOf} onChange={event => setAsOf(event.target.value)} className="mt-1.5 border-[#d8e5e2]" /></div><fieldset><legend className="text-xs font-medium text-[#496762]">Boletins</legend><div className="mt-1.5 flex flex-wrap gap-2">{B3_REPORTS.map(reportType => <button key={reportType} type="button" onClick={() => setReportTypes(current => current.includes(reportType) ? current.filter(item => item !== reportType) : [...current, reportType])} aria-pressed={reportTypes.includes(reportType)} className={`rounded-lg border px-3 py-2 font-mono text-xs font-semibold transition ${reportTypes.includes(reportType) ? "border-[#2b9b83] bg-[#eaf9f4] text-[#176957]" : "border-[#d8e5e2] bg-white text-[#607a76] hover:bg-[#f5faf8]"}`}>{reportType}</button>)}</div></fieldset><Button onClick={() => collect()} disabled={collection.isPending || !asOf || reportTypes.length === 0} className="bg-[#173c45] text-white hover:bg-[#24515a]">{collection.isPending ? <Loader2 className="animate-spin" /> : <Archive />} Coletar agora</Button></div><label className="mt-4 flex cursor-pointer items-start gap-2 rounded-xl border border-[#dceae6] bg-[#fbfdfc] px-3.5 py-3 text-xs text-[#466962]"><input type="checkbox" checked={normalize} onChange={event => setNormalize(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#21826d]" /><span><strong>Normalizar XMLs em DataFrames CSV auditáveis.</strong> A normalização só roda sobre XML oficial já validado e retorna metadados, não linhas de mercado pesadas.</span></label></>}
+      {collection.isPending && <div className="mt-5 flex items-center gap-2 rounded-xl border border-[#cce4df] bg-[#f2fbf7] px-4 py-3 text-xs text-[#327569]"><Loader2 className="h-4 w-4 animate-spin" />Atualização em andamento. Os cálculos dependentes de B3 permanecem bloqueados até a validação.</div>}
+      {collection.isError && <div role="alert" className="mt-5 flex items-start gap-2 rounded-xl border border-[#f1c6bd] bg-[#fff4f0] px-4 py-3 text-xs leading-5 text-[#8d543f]"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />A coleta oficial não foi concluída nesta tentativa. Nenhum arquivo, preço ou DataFrame B3 foi publicado. Tente novamente quando a fonte estiver disponível.</div>}
+      {collection.data && <div className="mt-5 space-y-3">{collection.data.reports.map(report => report.availability === "available" ? <div key={report.reportType} className="rounded-xl border border-[#dceae6] bg-[#fbfdfc] p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-[#21826d]" /><p className="font-mono text-xs font-semibold text-[#24594f]">{report.reportType}</p><span className="rounded bg-[#e8f6f1] px-2 py-0.5 text-[10px] font-semibold text-[#267b68]">disponível · {report.attempts} tentativa(s)</span></div>{report.officialDownloadUrl && <a href={report.officialDownloadUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#17745f] underline">Origem oficial <ExternalLink className="h-3 w-3" /></a>}</div><div className="mt-3 grid gap-3 text-[11px] text-[#56716c] sm:grid-cols-3"><div><p className="font-semibold text-[#315b53]">Arquivo bruto</p><p className="mt-1 font-mono">{report.outerArchive ? `${report.outerArchive.filename} · ${formatBytes(report.outerArchive.bytes)}` : "Não preservado"}</p><p className="mt-1 break-all font-mono text-[10px]">{report.outerArchive ? `SHA-256 ${report.outerArchive.sha256}` : "Metadados apenas"}</p></div><div><p className="font-semibold text-[#315b53]">ZIP interno</p><p className="mt-1 font-mono">{report.innerArchive ? `${report.innerArchive.filename} · ${formatBytes(report.innerArchive.bytes)}` : "Não preservado"}</p><p className="mt-1">Data-base {report.sourceAsOf}</p></div><div><p className="font-semibold text-[#315b53]">XMLs identificados</p><p className="mt-1">{report.xmlFiles.length} arquivo(s) no ZIP oficial.</p><p className="mt-1">Hash de XML é concluído na normalização streaming.</p></div></div>{report.normalizations.length > 0 && <div className="mt-3 rounded-lg border border-[#c9e8df] bg-[#f0fbf7] p-3"><p className="flex items-center gap-1.5 text-[11px] font-semibold text-[#20715f]"><FileKey2 className="h-3.5 w-3.5" />DataFrames normalizados e persistidos</p>{report.normalizations.map(normalization => <div key={normalization.sourceFile} className="mt-2 border-t border-[#d9eee7] pt-2 text-[10px] text-[#4b7068]"><p className="break-all font-mono">{normalization.sourceFile}</p><p>{new Intl.NumberFormat("pt-BR").format(normalization.records)} linhas · {normalization.columns.length} colunas · {normalization.validationStatus}</p></div>)}</div>}</div> : <div key={report.reportType} className="rounded-xl border border-[#ecd3b7] bg-[#fff9ef] p-4"><div className="flex items-start gap-2"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[#a9722f]" /><div><p className="font-mono text-xs font-semibold text-[#7d5423]">{report.reportType} · indisponível</p><p className="mt-1 text-xs leading-5 text-[#7d643e]">{report.availabilityReason}</p><p className="mt-2 text-[10px] font-medium uppercase tracking-[.1em] text-[#9a784d]">Cálculos dependentes deste boletim permanecem bloqueados.</p></div></div></div>)}</div>}
+      <div className="mt-5 flex gap-2 rounded-xl border border-[#dceae6] bg-[#fbfdfc] p-3 text-[11px] leading-5 text-[#5f7873]"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#21826d]" /><p>Disponibilidade de arquivo não equivale a preço ou recomendação. A publicação de curvas, séries e cálculos requer associação na mesma data-base e as validações específicas do instrumento.</p></div>
+    </CardContent>
+  </Card>;
+}

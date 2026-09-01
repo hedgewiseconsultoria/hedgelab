@@ -1,0 +1,214 @@
+# Projeto HEDGE LAB — TODO
+
+- [x] Documentar a arquitetura, o modelo de domínio e os limites explícitos da primeira versão.
+- [x] Remover a dependência funcional de banco de dados e substituir a persistência proposta por DataFrames, Parquet, CSV, metadados JSON e exportações versionáveis.
+- [x] Validar, registrar e citar as fontes oficiais BCB/PTAX, B3, ANBIMA e IBGE, sem criar endpoints ou convenções inexistentes.
+- [x] Parametrizar a FGV como fonte oficial exclusiva do IGP-M, mantendo a exceção identificada nas extrações, telas e relatórios.
+- [x] Substituído pela arquitetura sem banco: criar contratos de DataFrames, linhagem de fonte e pacotes de cenário exportáveis para fontes, instrumentos, séries, exposições, cenários e simulações.
+- [x] Implementar cadastro de exposições empresariais com moeda, valor nocional, prazo, direção econômica e fluxo de caixa projetado.
+- [x] Implementar a camada de coleta manual e normalização para dados públicos oficiais, preservando origem, data/hora, hash e estado de validação.
+- [x] Expor coleta manual auditável para PTAX/BCB e IPCA/IBGE, armazenando payload bruto, DataFrame CSV, manifesto, hashes e linhagem sem banco.
+- [x] Expor pela interface uma coleta manual B3 de BVBG.086.01 e BVBG.187.01, usando o fluxo oficial, preservando arquivos brutos e exibindo os hashes retornados.
+- [x] Implementar coletores em memória para PTAX do BCB, IPCA do IBGE, ETTJ pública da ANBIMA, publicação parametrizada do IGP-M da FGV e cadastro BVBG.028.02 da B3.
+- [x] Implementar coleta e normalização de boletins de preço B3 (BVBG.086.01 e BVBG.187.01) somente após baixar e validar seus layouts reais.
+- [x] Descobrir e documentar o Hub de Dados Públicos ou fluxo oficial B3 atualmente funcional para BVBG.086.01 e BVBG.187.01.
+- [x] Baixar um arquivo real e o respectivo layout oficial de cada boletim B3, preservando URL, data, hash e evidência de origem.
+- [x] Comparar os campos observados nos arquivos reais com os layouts oficiais antes de escrever ou alterar parsers.
+- [x] Gerar DataFrames reais e validar cobertura para DOL, WDO, DI1, commodities e opções, sem usar dados simulados no pipeline de mercado.
+- [x] Exibir no painel o manifesto do pipeline B3 real com data-base, hashes, colunas materializadas e cobertura por família de instrumento.
+- [x] Implementar um coletor B3 em código para BVBG.086.01 e BVBG.187.01 a partir do fluxo oficial documentado, preservando URL, data-base, hash, arquivo bruto e estado de validação sem depender de comandos manuais.
+- [x] Obter e validar um InstrumentReport B3 compatível com a mesma data-base dos boletins de preço, ou tornar a divergência uma limitação impeditiva e explícita no pipeline.
+- [x] Bloquear a associação de PriceReport e InstrumentReport com datas-base divergentes e refletir o estado inválido no manifesto, API e painel.
+- [x] Generalizar o coletor B3 para InstrumentReport e localizar uma data-base oficial com cadastro e boletins de preço recuperáveis no mesmo fluxo.
+- [x] Promover o conjunto B3 alinhado de 13/08/2026 para o manifesto e o painel, removendo o bloqueio de associação somente para essa data-base validada.
+- [x] Implementar validações de qualidade, cobertura e linhagem para os dados coletados.
+- [x] Implementar o Instrument Master extensível para futuros, swaps, NDFs e opções, com campos confirmados por fontes oficiais.
+- [x] Implementar cálculos de câmbio, juros, inflação, base, curvas, taxa over e contagem em dias úteis apenas segundo definições oficialmente validadas — cobertura publicada e bloqueios de base e curvas de precificação foram consolidados em `docs/COBERTURA_QUANTITATIVA_E_INTERFACE_2026-08-19.md`; a aplicação não estima os módulos sem definição aplicável, fonte ou insumo validado.
+- [x] Expor consulta por período e linhagem da série SGS 11 Selic do BCB, sem conversão automática para taxa over ou curva.
+- [x] Expor consulta e coleta manual auditável da série SGS 1178 Selic anualizada base 252, diretamente da API oficial do BCB, sem derivá-la da série SGS 11.
+- [x] Implementar motores de hedge para NDF, swap cambial, opções de câmbio e futuros de DI e dólar, com memória de cálculo rastreável.
+- [x] Implementar o dimensionamento rastreável de futuros DOL e WDO a partir dos tamanhos de contrato confirmados pela B3, sem simular preço de ajuste ou margem.
+- [x] Implementar cálculo de hedge ratio, efetividade e documentação de premissas alinhada a IAS 39, IFRS 9 e CPC 48, sem declarar contabilização automática.
+- [x] Implementar cenários de estresse, sensibilidades, VaR paramétrico e risco residual pós-hedge.
+- [x] Implementar cenário cambial por PTAX e VaR paramétrico com choque, volatilidade, horizonte e confiança informados explicitamente pelo usuário.
+- [x] Implementar dashboard consolidado de posições, exposição cambial e de juros, MTM, Greeks quando aplicáveis e exposição líquida por vencimento — consolida nocionais, exposição líquida por moeda/vencimento, fontes, VaR residual, dívida CDI e cobertura nocional contratual; MTM, Greeks e risco de juros são exibidos como bloqueados enquanto faltarem insumos oficiais e convenções de instrumento.
+- [x] Consolidar os nocionais declarados por moeda e vencimento, mantendo explícita a ausência de MTM, risco de juros e Greeks sem insumos validados.
+- [x] Exibir no resumo consolidado o último VaR residual efetivamente calculado, com cobertura, sem inferir risco quando não houver snapshot válido.
+- [x] Manter histórico por perfil local do navegador, com versões imutáveis de simulações e comparação direta entre cenários, sem controle de usuário ou OAuth.
+- [x] Implementar comparação local de dois pacotes de cenário exportados, validando o hash antes de exibir diferenças de DataFrames.
+- [x] Implementar geração de relatório auditável em PDF com memória de cálculo, fontes, data/hora de extração e limitações.
+- [x] Implementar a exportação local de PDF do cenário com memória de cálculo, fontes consultadas, hashes e carimbo de geração.
+- [x] Construir toda a experiência em português brasileiro, com interface corporativa refinada, responsiva e acessível — a auditoria final de idioma, identidade, acessibilidade, estados dinâmicos e viewports 1280×720/375×812 está consolidada em `docs/COBERTURA_QUANTITATIVA_E_INTERFACE_2026-08-19.md` e `docs/VALIDACAO_VISUAL_2026-08-18.md`.
+- [x] Respeitar `prefers-reduced-motion` nas animações e transições globais da interface.
+- [x] Anunciar atualizações das métricas consolidadas com região dinâmica acessível (`aria-live`).
+- [x] Criar testes unitários para cálculos, regras de validação, rotas e versionamento; executar verificação de tipos e testes.
+- [x] Verificar a interface em desktop e mobile e documentar limitações conhecidas de dados e cobertura; a inspeção visual em 1280×720 e 375×812 está registrada, com ressalva para tabelas densamente populadas e dispositivos físicos.
+- [x] Corrigir o ciclo de atualização excessivo do dashboard quando módulos publicam snapshots idênticos após renderização.
+- [x] Remover fluxos funcionais de autenticação e banco de dados do produto ou declará-los explicitamente inativos na interface e na API.
+- [x] Implementar exportação e importação de pacotes de cenário: JSON para a sessão integral e CSV+manifesto para o DataFrame de exposições, com hash, linhagem e versão de esquema; os demais DataFrames permanecem em JSON ou Parquet.
+- [x] Validar, na importação CSV de exposições, a presença de linhagem serializável e carimbo de geração além do hash, esquema e contagens.
+- [x] Criar contratos e validações para DataFrames de exposição, hedge, cenário, cálculo e linhagem.
+- [x] Cobrir exportação, importação e execução sem banco de dados com testes automatizados.
+- [x] Implementar exportação e importação Parquet com manifesto, hash e versão de esquema para os DataFrames de sessão.
+- [x] Fazer a coleta manual B3 acionar uma normalização opcional para DataFrames auditáveis ou expor esse passo explicitamente na API e na interface.
+- [x] Expor pela API o estado de autenticação inativa e eliminar qualquer fluxo funcional remanescente que dependa do template OAuth.
+- [x] Desativar no runtime o bootstrap OAuth remanescente do template ou documentá-lo como infraestrutura inerte sem rotas funcionais acessíveis ao produto.
+- [x] Materializar registros do Instrument Master para opções B3 e DI futuro com campos suportados por fonte oficial e hash de evidência.
+- [x] Definir e validar esquema de ingestão de contrato bilateral para NDF e swap cambial, com arquivo, hash e termos obrigatórios explícitos.
+- [x] Expor e testar a criação e o uso do Instrument Master extensível pela API ou pelo fluxo de cálculo.
+- [x] Corrigir o painel NDF para não consultar a API quando a taxa de fixing estiver vazia, inválida ou não positiva.
+- [x] Registrar localmente, por hash, até 20 versões de pacotes JSON importados e validados para comparação sem banco de dados.
+- [x] Implementar artefato Parquet de linhas de DataFrame com manifesto, versão de esquema, hash e leitura de integridade.
+- [x] Expor a exportação e importação Parquet por API e interface, associando o manifesto ao pacote de cenário da sessão.
+- [x] Integrar o artefato Parquet a todos os DataFrames da sessão e ao manifesto do pacote de cenário.
+- [x] Adicionar teste de ponta a ponta da exportação e importação Parquet da sessão completa.
+- [x] Implementar e documentar a distinção operacional entre IAS 39 e IFRS 9/CPC 48 para a triagem de efetividade.
+- [x] Expor e testar o hedge ratio nocional de ponta a ponta no painel de efetividade.
+- [x] Adicionar teste integrado da rota de efetividade cobrindo nocionais, framework e referência de política.
+- [x] Adicionar teste de componente do painel de efetividade validando envio dos nocionais e renderização do hedge ratio retornado.
+- [x] Registrar premissas auditáveis da triagem, distinguindo diagnóstico, política contábil e ausência de contabilização automática.
+- [x] Implementar e documentar o tratamento verificável do framework IAS 39 legado, distinto de IFRS 9/CPC 48, sem aplicar conclusão automática.
+- [x] Adicionar teste dedicado do ramo IAS 39 legado na rota e no painel de efetividade.
+- [x] Adicionar teste integrado da rota de efetividade com framework IAS 39 legado, política legada e resposta IAS39_LEGACY_POLICY_CHECK.
+- [x] Integrar ao estado de sessão exportado e importado os DataFrames reais de Instrument Master, hedge e cálculos, removendo o cenário sintético quando não representar estado real.
+- [x] Adicionar teste ponta a ponta do fluxo Parquet via dashboard, cobrindo exportação de arquivo e manifesto, validação conjunta e restauração da sessão.
+- [x] Registrar no histórico imutável local todas as simulações realmente executadas na sessão, além do cenário FX.
+- [x] Adicionar fluxo de seleção e uso de Instrument Master B3 na interface, persistindo-o no DataFrame da sessão somente quando efetivamente utilizado.
+- [x] Cobrir por teste automatizado a restauração da sessão pela interface, incluindo Instrument Master, hedge, cenário e cálculos.
+- [x] Validar em teste de integração do cliente que os DataFrames restaurados preenchem os painéis correspondentes da interface.
+- [x] Integrar o histórico salvo a uma comparação direta de versões pela interface, sem exigir reimportação manual de pacotes.
+- [x] Definir e testar um namespace explícito de perfil local para o histórico no runtime sem autenticação.
+- [x] Cobrir no dashboard a exportação do par `.parquet` e `.parquet.manifest.json`, verificando os dois downloads auditáveis pela interface.
+- [x] Usar a preparação real do par Parquet+manifesto no teste de integração do dashboard, cobrindo rejeição de combinação inválida antes da mutação de importação.
+- [x] Expor e afirmar no teste de cliente os conteúdos restaurados nos painéis de Instrument Master, hedge, cenário e cálculos, além das contagens de DataFrames.
+- [x] Executar no mesmo teste integrado do dashboard o round-trip real de exportação e reimportação do mesmo par Parquet+manifesto, reduzindo o mock à fronteira tRPC.
+- [x] Validar visualmente os estados vazio, erro, carregamento e dados densos do dashboard em desktop e mobile, documentando limitações residuais — vazio e PTAX foram verificados nos dois viewports; pipeline B3 denso foi recapturado em 1280×720 e 375×812, e o carregamento DI1 em mobile foi isolado sem mutation ou dado de mercado.
+- [x] Validar visualmente em desktop e mobile o erro real de PTAX, com a mensagem de indisponibilidade e sem taxa substituta, preservando evidência verificável distinta do erro de coleta DI1.
+- [x] Validar visualmente em desktop e mobile a mensagem de bloqueio da coleta DI1, sem confundi-la com o erro de fonte PTAX ou com estado de carregamento — a captura mobile de 19/08/2026 e a captura desktop persistida no armazenamento do projeto exibem o bloqueio oficial B3, sem curva alternativa e de modo distinto de PTAX e do watchdog local.
+- [x] Registrar nova evidência verificável do carregamento DI1 e do Pipeline B3 denso em desktop e mobile, descrevendo explicitamente o componente e o viewport de cada captura — o registro visual lista as capturas integrais 1280×720 e 375×812, a ação DI1 real desktop e a inspeção móvel isolada com controles bloqueados e sem DataFrame.
+- [x] Garantir que a coleta DI1 libere botão e data-base em sucesso, timeout ou erro, exibindo o bloqueio específico em vez de manter o carregamento local indefinidamente — sucesso é coberto por componente, timeout local foi registrado e as evidências oficiais B3 em desktop e mobile preservam botão e data-base utilizáveis.
+- [x] Cobrir o watchdog local DI1 em componente, incluindo liberação de controles após 65 segundos, mensagem local de timeout e prioridade do erro oficial quando a mutation rejeita.
+- [x] Revalidar no browser a coleta DI1 após a correção, registrando a transição de carregamento para controles liberados e mensagem diferenciada entre timeout local e erro oficial da B3 — captura desktop recuperável confirma o erro oficial em 45000 ms; a captura do watchdog confirma o fallback local em 65 s e a evidência mobile confirma o bloqueio oficial B3 em 60000 ms.
+- [x] Configurar o download DI1 no servidor com limite inferior ao watchdog do cliente, para que a mensagem oficial B3 tenha oportunidade de chegar ao desktop antes do fallback local.
+- [x] Cobrir em componente o desfecho de sucesso da coleta DI1, confirmando que botão e data-base são liberados após uma resposta válida, além dos casos de timeout e erro.
+- [x] Adicionar cobertura automatizada dos estados vazio, erro, carregamento e dados densos nos cartões críticos, reduzindo a dependência de inspeção manual responsiva — os cartões de coleta B3 e de vértices DI1 cobrem vazio, carregamento, erro e dados unitários ou densos com linhagem verificável.
+- [x] Adicionar teste de densidade ao cartão DI1 com múltiplos vértices B3 e ao cartão de coleta B3 com múltiplos XMLs e normalizações, confirmando hashes e blocos repetidos por critério automatizado verificável.
+- [x] Refinar a identidade visual do dashboard principal com hierarquia editorial e elementos de marca coerentes com um laboratório financeiro institucional.
+- [x] Escopo didático amplo de novos simuladores registrado e reorientado pelo usuário antes de implementação; a prioridade ativa passa a ser o pipeline oficial B3 e a curva de DI futuro.
+- [x] Revalidar o download, o layout e os campos materializados dos arquivos oficiais B3 necessários para contratos DI1 e preços de ajuste na mesma data-base.
+- [x] Definir e documentar a metodologia de curva DI futuro permitida pelos dados B3 disponíveis, sem replicar o processo proprietário de formação de preço ou inferir vértices ausentes.
+- [x] Implementar DataFrame de vértices DI futuro com preço/taxa B3, vencimento, dias úteis, data-base, arquivo, hash, regra de validação e status explícito.
+- [x] Integrar a curva DI validada aos módulos elegíveis de DI e hedge de juros, mantendo bloqueio de MTM e métricas que demandem insumos ainda indisponíveis.
+- [x] Construir matriz oficial de cobertura por fator de risco e instrumento: termo/NDF, futuros, opções, FRA e estruturas disponíveis no mercado brasileiro, identificando fonte, contrato, dados requeridos e limitação.
+- [x] Implementar modelo de situação econômica e motor de elegibilidade que associe uma exposição declarada às alternativas de hedge compatíveis, sem recomendar instrumentos com dados ou termos ausentes.
+- [x] Exibir comparação auditável entre alternativas elegíveis, com relação de cobertura, dados observados, premissas, resultados de cenário e bloqueios quantitativos de cada instrumento — a interface consome, por alternativa, observação B3 selecionada, dimensionamento canônico, resultado de cenário canônico, premissas e limitações; todos permanecem condicionados aos insumos validados.
+- [x] Criar DataFrames canônicos para situação econômica, fator de risco, alternativa de hedge, dimensionamento e resultado de cenário, independentes da fonte primária de dados.
+- [x] Vincular dados observados por alternativa elegível (série, contrato, fonte, arquivo, data-base e hash) à comparação auditável quando os insumos oficiais estiverem disponíveis.
+- [x] Permitir selecionar explicitamente uma observação B3 já normalizada por família, símbolo e vencimento para vinculá-la à alternativa correspondente, preservando fonte, arquivo, data-base e hash sem inferência.
+- [x] Validar no domínio e na interface a compatibilidade obrigatória entre `alternative_kind` e famílias/tipos B3 permitidos antes de persistir o vínculo de observação.
+- [x] Restringir o seletor de observações B3 às famílias, tipos e séries compatíveis com a alternativa escolhida, bloqueando combinações inválidas com mensagem auditável.
+- [x] Adicionar teste de domínio que rejeite vínculo incompatível sem alterar o DataFrame de vínculos B3.
+- [x] Adicionar teste da comparação auditável com símbolo, vencimento, arquivos e hashes de uma observação B3 selecionada.
+- [x] Adicionar round-trip JSON e Parquet que confirme a persistência de `b3_observation_link_dataframe`.
+- [x] Calcular e persistir a relação de cobertura e o dimensionamento por alternativa somente com contrato, unidade e parâmetros validados — DOL/WDO, opção DOL, futuros e opções BGI/CCM/SOY/SJC, NDF contratual e referências nocionais de swaps cambial e de taxa publicam cobertura canônica; DI1, FRA, opção DI1 e instrumentos bilaterais sem unidade, contrato ou parâmetros específicos validados permanecem corretamente bloqueados.
+- [x] Expor a estrutura FRA DI1 com seleção de dois vencimentos DI1 B3 na mesma data-base e referência de lados opostos, sem calcular razão de contratos, PU neutro, taxa, DV01, MTM, margem ou resultado financeiro.
+- [x] Publicar somente a referência de um futuro-objeto por opção DI1, exigindo ficha B3 hashada, série de opção e DI1 subjacente compatíveis, posição/tipo declarados e dois vencimentos selecionados, sem PU, taxa, prêmio, MTM, DV01, volatilidade ou Greeks.
+- [x] Publicar cobertura nocional da opção DOL somente com ficha B3, exposição USD homogênea, série B3 de opção selecionada e posição/tipo declarados, sem delta, prêmio, MTM, volatilidade ou Greeks.
+- [x] Publicar cobertura física de opções BGI, CCM, SOY e SJC somente com a ficha específica da opção, unidade homogênea, série B3 selecionada e posição/tipo explicitamente declarados, sem prêmio, delta, MTM, Greeks ou conversão de unidade.
+- [x] Implementar dimensionamento de futuros BGI, CCM, SOY e SJC somente para exposição declarada na mesma unidade física da especificação B3, sem converter unidades ou presumir preço.
+- [x] Exibir estado de carregamento explícito no dimensionador de commodities enquanto a validação tRPC estiver em andamento, mantendo vazio, erro e resultado separados.
+- [x] Publicar o dimensionamento DOL/WDO no DataFrame canônico apenas com exposição USD selecionada, contrato, unidade e política de arredondamento explícitos, mantendo bloqueio de preço, vencimento, ajuste e margem.
+- [x] Tratar explicitamente a sobrecobertura DOL/WDO na publicação canônica, preservando o percentual contratual como dado válido e uma limitação auditável quando a cobertura exceder 100%.
+- [x] Cobrir dimensionamento DOL/WDO com sobrecobertura e validar a exportação do bundle com o DataFrame canônico publicado.
+- [x] Adicionar teste de integração no dashboard que publique dimensionamento DOL/WDO no DataFrame canônico e confirme sua presença no bundle exportado.
+- [x] Adicionar round-trip JSON/Parquet com `hedge_sizing_dataframe` DOL/WDO publicado, incluindo sobrecobertura limitada a 100%.
+- [x] Adicionar round-trip JSON com `hedge_sizing_dataframe` DOL/WDO publicado, `coverage_target_pct` em 100% e limitação auditável de sobrecobertura preservada.
+- [x] Popular e exibir resultados auditáveis por alternativa no DataFrame canônico de resultado de cenário quando existir motor e insumos oficiais elegíveis — ajuste DI1, NDF com contrato OTC hasheado, fluxo de swap cambial com contrato OTC hasheado e designado, ajuste DOL/WDO e exercício intrínseco de DOL, CCM, BGI, SOY e SJC são vinculados e cobertos; instrumentos sem alternativa, contrato ou insumo oficial validado permanecem corretamente sem resultado.
+- [x] Expor o ajuste diário DOL/WDO em cartão de interface com dois preços B3, duas evidências hashadas e snapshot auditável, sem declarar MTM.
+- [x] Vincular o resultado de ajuste diário DOL/WDO à alternativa canônica somente quando a evidência atual coincidir com a observação B3 explicitamente selecionada.
+- [x] Expor a liquidação intrínseca de opção DOL com série B3 selecionada, preço de liquidação e hash, mantendo prêmio, volatilidade e Greeks bloqueados.
+- [x] Organizar a primeira versão funcional por exposições econômicas empresariais: pagamento e recebimento em USD, dívida pós-fixada em CDI e compra ou venda de commodities B3.
+- [x] Adicionar atalhos de casos empresariais ao diagnóstico para pré-configurar USD pagável/recebível, dívida CDI, boi, milho e soja sem inserir dados de mercado fictícios.
+- [x] Completar a cobertura de Instrument Master e Market Data para futuros e opções de DOL/WDO, DI1, BGI, CCM, SOY e SJC com séries efetivamente identificadas no pacote B3 — o painel real alinhado de 13/08/2026 exibe as famílias empresariais e seus tipos observados, e a cobertura de interface afirma DOL, WDO, DI1, BGI, CCM, SOY e SJC sem reintroduzir ICF fora do escopo.
+- [x] Materializar no Instrument Master as especificações oficiais verificadas de futuros BGI, CCM, SOY e SJC, preservando URL, arquivo e hash da ficha B3 e sem habilitar dimensionamento não validado.
+- [x] Construir o fluxo de diagnóstico que recebe uma exposição antes de selecionar o derivativo e explica direção de risco, impacto econômico e alternativas elegíveis.
+- [x] Implementar comparações de cenários sem hedge, futuro, opção e hedge parcial apenas quando preço, contrato, vencimento e parâmetros requeridos estiverem validados — o quadro apresenta, no mesmo cenário linear, sem hedge, futuro e residual parcial; exercícios intrínsecos DOL, CCM, BGI, SOY e SJC permanecem separados como não equivalentes enquanto prêmio, unidade econômica, data-base e termos contratuais não permitirem comparação segura.
+- [x] Estruturar a interface de formação para alteração de exposição, horizonte, percentual protegido e quantidade, distinguindo cenário didático parametrizado de observação oficial de mercado.
+- [x] Vincular ao DataFrame canônico resultados auditáveis dos demais motores elegíveis por alternativa, somente com série, contrato, fonte, data-base e hash validados — NDF, DI1, fluxo de swap cambial, ajuste DOL/WDO e exercícios intrínsecos DOL, CCM, BGI, SOY e SJC atendem aos vínculos disponíveis; alternativas sem observação, contrato ou método elegível validado permanecem bloqueadas.
+- [x] Criar o caminho auditável de cenário do swap cambial bilateral, com identificador contratual explícito, publicação canônica condicionada e interface separada que declare tratar-se de cenário de fluxo, não MTM.
+- [x] Permitir o cadastro auditável de swap de taxa bilateral para exposição CDI, exigindo contrato hasheado, pernas, datas e convenções declaradas, sem liberar precificação, MTM, curva, taxa over, DV01 ou resultado financeiro.
+- [x] Publicar a referência canônica de cobertura nocional de swap de taxa somente com contrato BRL hasheado, exposição CDI em BRL, designação explícita e vencimento coincidente, sem cálculo de taxa ou resultado financeiro.
+- [x] Exibir no dashboard um resumo consolidado de dívida CDI declarada e cobertura nocional contratual, mantendo explícitos os bloqueios de MTM, curva, taxa over, DV01 e risco de juros.
+- [x] Publicar a referência canônica de cobertura nocional de swap cambial somente com contrato USD/BRL hasheado, pernas declaradas, exposição USD, designação explícita e vencimento coincidente, sem taxa, cupom, MTM ou resultado financeiro.
+- [x] Calcular inflação acumulada pelo quociente entre números-índice oficiais IPCA do agregado 1737, variável 2266, mesma localidade e linhagens IBGE verificáveis, sem projeção, preenchimento de competência ausente ou composição de percentuais arredondados.
+- [x] Calcular o fator acumulado da taxa over apenas com observações diárias oficiais SGS 11, sequência útil contínua e linhagem BCB hasheada, sem annualização, curva, interpolação ou preenchimento de dias.
+- [x] Garantir que o timeout da coleta oficial B3 também cubra a leitura do corpo do arquivo, evitando carregamento DI1 indefinido quando a conexão externa encerra de forma incompleta.
+- [x] Disponibilizar somente no ambiente de desenvolvimento um estado de inspeção visual de carregamento DI1, sem mutação, payload ou dado de mercado simulado, para capturar o breakpoint móvel.
+- [x] Implementar liquidação intrínseca de opção CCM com unidade de 450 sacas, estilo americano e condições de exercício da ficha B3, mantendo prêmio, MTM, volatilidade e Greeks bloqueados.
+- [x] Vincular o exercício intrínseco de opção CCM à alternativa canônica somente quando a evidência coincidir com a observação B3 de opção explicitamente selecionada.
+- [x] Implementar liquidação intrínseca de opção BGI com unidade de 330 arrobas e estilo americano somente após preservar a ficha oficial B3 com hash e exigir observação selecionada.
+- [x] Vincular o exercício intrínseco de opção BGI à alternativa canônica somente quando a evidência coincidir com a observação B3 de opção selecionada.
+- [x] Implementar liquidação intrínseca de opção SOY em US$/t com unidade de 34 toneladas e estilo americano, exigindo ficha hashada e observação B3 selecionada.
+- [x] Vincular o exercício intrínseco de opção SOY à alternativa canônica somente quando a evidência coincidir com a observação B3 de opção selecionada, preservando resultado em USD.
+- [x] Implementar liquidação intrínseca de opção SJC em US$/saca com 450 sacas por contrato, somente após preservar com hash as fichas oficiais B3 de opção e futuro-objeto.
+- [x] Expor o cartão SJC e vinculá-lo ao resultado canônico somente quando a observação de opção selecionada coincidir com o arquivo, data-base e hash B3 do exercício.
+- [x] Integrar o cartão SJC após os cartões BGI e SOY no dashboard, registrando seu snapshot no histórico local e nas exportações de sessão.
+- [x] Cobrir no quadro de alternativas a exibição de resultado de cenário populado por alternativa, além do estado bloqueado ou não calculado.
+- [x] Implementar cenários parametrizados de futuros de câmbio e commodities, com resultado bruto linear, posição, quantidade, unidade de contrato, data-base e limitação explícita; esses cenários não poderão substituir preços ou ajustes oficiais da B3.
+- [x] Exibir em um quadro auditável os resultados de cenários efetivamente executados na sessão, preservando método, status, parâmetros, linhagem e limitações sem criar ranking entre métricas não comparáveis.
+- [x] Exibir no quadro de comparação os parâmetros estruturados e a linhagem aplicável de cada cálculo, incluindo fonte, arquivo, data-base e hash quando disponíveis.
+- [x] Cobrir por testes de interface o método, status, parâmetros, linhagem e limitações exibidos no quadro de comparação auditável.
+- [x] Expor o ajuste diário DI1 com PU, taxa, dias úteis e evidências B3 declarados pelo usuário, sem usar o cenário linear para instrumentos de juros — cobre posição iniciada hoje e posição em aberto.
+- [x] Expor no cartão DI1 a posição em aberto com PU anterior, taxas DI de correção e evidências B3 correspondentes.
+- [x] Cobrir por testes de interface e rota os dois ramos do ajuste diário DI1: posição iniciada hoje e posição em aberto.
+- [x] Consumir `curveReference` no `Di1VariationMarginCard` para reconciliar data-base, calendário e linhagem no próprio fluxo de ajuste, sem preencher PU, MTM, DV01, FRA ou interpolação.
+- [x] Cobrir em teste de interface que o módulo elegível DI1 usa a referência de curva validada no próprio componente.
+- [x] Documentar módulos de juros que já consomem a referência DI e bloqueios quantitativos que permanecem vigentes.
+- [x] Corrigir o HTML externo anexado para remover declarações duplicadas e normalizar os blocos de estilo da pré-visualização.
+- [x] Tratar a ausência de cotação PTAX como indisponibilidade orientativa na interface, sem expor erro bruto de consulta nem criar taxa substituta.
+- [x] Preparar pacote do código-fonte do HEDGE LAB para transferência manual ao repositório GitHub do usuário, sem publicar pela hospedagem gerenciada.
+- [x] Documentar os campos exatos de configuração do Render para implantar o HEDGE LAB a partir do repositório GitHub, incluindo build, inicialização e variáveis necessárias.
+- [x] Corrigir as rotas da barra lateral para que Exposições, Dados de mercado, DataFrames, Cenários, Pacotes de cenário e Relatórios renderizem conteúdo próprio em vez de repetir a visão consolidada.
+- [x] Confirmar o commit GitHub e o redeploy Render da correção de navegação antes de considerar a atualização disponível no aplicativo público — o usuário confirmou que os painéis passaram a mudar no aplicativo publicado.
+- [x] Produzir roteiro passo a passo de uso do HEDGE LAB, incluindo cadastro, fontes oficiais, diagnóstico, cenários, exportação e limites quantitativos.
+- [x] Corrigir o contraste insuficiente de rótulos, textos auxiliares, campos, tabelas, valores monetários e estados vazios no painel Exposições.
+- [x] Orientar a carga e a validação do arquivo oficial BVBG.028.02 no painel Dados de mercado, preservando data-base e linhagem B3.
+- [x] Diagnosticar e tratar a resposta HTML inesperada da B3 na coleta BVBG, preservando o bloqueio de publicação quando o conteúdo não for um arquivo oficial válido.
+- [x] Permitir que a coleta e a normalização B3 usem armazenamento temporário da sessão quando o ambiente Render não possuir as credenciais de armazenamento nativas do Manus.
+- [x] Adicionar no cadastro de exposições a seleção explícita de natureza e indexador para reconhecer dívida CDI declarada sem inferência pela descrição.
+- [x] Adicionar ao cadastro de exposições uma variável econômica explícita, vinculando-a a natureza, indexador e alternativas de hedge elegíveis.
+- [x] Remodelar a experiência como fluxo didático: dados oficiais automáticos, cadastro econômico completo, alternativas e cenários, síntese de risco e intercâmbio final explicado.
+- [x] Remover importação, exportação e ações técnicas da visão consolidada, concentrando-as em módulo final de intercâmbio de sessão.
+- [x] Carregar fontes oficiais disponíveis automaticamente na abertura, com estados auditáveis de atualização, indisponibilidade e bloqueio sem dados substitutos.
+- [x] Corrigir globalmente o contraste de rótulos, valores predefinidos, placeholders, campos desabilitados e botões inativos nos painéis Dados de mercado e Cenários, estendendo a validação aos demais cards.
+- [x] Diagnosticar e corrigir a recuperação automática dos boletins oficiais B3 no ambiente publicado, sem liberar DataFrames quando o download, a validação ou o armazenamento falharem.
+- [ ] Corrigir o diagnóstico de pagamento em USD para que uma exposição preenchida seja validada, registrada e receba alternativas elegíveis, sem o bloqueio genérico observado na interface publicada.
+- [ ] Corrigir a chamada do cálculo didático de cenários no Render, que atualmente recebe HTML em vez do JSON tRPC esperado para os parâmetros DOL declarados.
+- [ ] Estabilizar o Web Service Render, que inicia na porta 10000 e encerra posteriormente com LIFECYCLE Command failed, retornando 502 na URL pública.
+- [x] Submeter e aprovar, antes de novas alterações de código, uma arquitetura de experiência orientada por casos empresariais, separando dados oficiais, hipóteses de treinamento, cálculos validados e próximos passos do usuário.
+- [x] Refinar a proposta de experiência para que cada exposição declarada apresente imediatamente as alternativas de hedge elegíveis e exiba curvas B3 oficiais como evidência visual contextual da alternativa selecionada.
+- [x] Remodelar a navegação e a tela inicial para uma central do consultor orientada por casos empresariais e próximos passos, mantendo Base técnica fora do fluxo primário.
+- [x] Integrar o cadastro de exposição à declaração imediata de alternativas de hedge, com relação econômica, sentido de proteção, requisitos e estado de elegibilidade.
+- [x] Exibir curvas e estruturas de vencimento B3 somente no contexto da alternativa selecionada, distinguindo evidência observada de hipótese didática e cálculo bloqueado.
+- [x] Preparar um pacote leve para GitHub, excluindo `.audit-sources`, artefatos de auditoria bruta, dependências, builds, logs e metadados locais não necessários ao deploy.
+- [x] Integrar a jornada de dívida CDI com DI1: carregar evidência B3 disponível sem exigir ação técnica, transferir exposição e alternativa selecionada para o cenário e comunicar bloqueios oficiais de forma operacional.
+- [ ] Validar, a partir de fontes oficiais B3, a cobertura de Boi Gordo, Café Arábica 4/5, Café Conilon Robusta, Etanol Hidratado, Milho, Ouro e Soja, incluindo instrumentos, unidades, moedas, liquidação e dados exigidos por alternativa.
+- [x] Adicionar atalhos empresariais de compra e venda para todas as commodities B3 cobertas, com variável econômica, unidade e direção de risco explícitas.
+- [x] Apresentar uma operação de hedge configurável imediatamente após a seleção de alternativa, destacando instrumento, posição econômica, dados oficiais necessários, percentual de cobertura e bloqueios.
+- [ ] Substituir o cenário desconectado por comparador integrado de preço do ativo-objeto, percentuais de cobertura e alternativas elegíveis até o vencimento, distinguindo hipótese didática de resultado auditável por dados oficiais.
+- [ ] Mapear e expor, por fator de risco e posição econômica, todas as estratégias de hedge aplicáveis — futuros, opções, FRA, NDF/termo, swaps e estruturas — mantendo estratégias visíveis mesmo quando o cálculo exigir dados ou contratos ainda não declarados.
+- [ ] Construir uma arquitetura comum de operação configurável e comparação por cenários, permitindo diferentes percentuais de cobertura e mostrando separadamente exposição física, instrumento de hedge, resultado didático e resultado auditável.
+- [x] Priorizar a disponibilidade dos dados oficiais: auditar downloads B3, tempos de resposta, armazenamento de sessão e todos os pontos que hoje podem expor falha de coleta ao usuário.
+- [x] Implementar recuperação B3 resiliente com tentativas limitadas, timeout configurável, validação de ZIP/XML, metadados mínimos de disponibilidade e bloqueio explícito quando não houver evidência oficial válida.
+- [x] Ajustar os estados de interface para carregar, indisponível, atualizado e bloqueado sem apresentar erro bruto, dado substituto ou cálculo dependente de fonte ausente.
+- [ ] Executar coleta B3 real em data-base disponível e registrar a disponibilidade por boletim antes de confirmar operação em produção.
+- [x] Diagnosticar a causa do encerramento LIFECYCLE/502 no Web Service Render, incluindo porta, comando de inicialização, memória e operações B3 de longa duração.
+- [x] Corrigir o servidor e a estratégia de atualização para que chamadas B3 lentas não impeçam a resposta de saúde, o carregamento da aplicação ou os endpoints tRPC.
+- [x] Revalidar o diagnóstico USD e o cenário DOL em execução de produção-equivalente, garantindo resposta tRPC JSON e estado orientativo quando a fonte oficial estiver indisponível.
+- [x] Preparar pacote leve revisado e roteiro de redeploy no Render com as configurações exatas do serviço estabilizado.
+- [x] Auditar a jornada completa como usuário para Ouro, DI1, USD e commodities, identificando cada ida técnica, campo duplicado, espera improdutiva e bloqueio sem próximo passo.
+- [x] Corrigir a disponibilidade contextual de Ouro e DI1, distinguindo fonte oficial indisponível de ausência de contrato/vértice, sem manter a pessoa em tela de consulta contínua.
+- [x] Conectar a exposição líquida por vencimento à alternativa escolhida, preenchendo operação, unidade, direção, vencimento, cobertura inicial e requisitos a partir dos dados já declarados.
+- [x] Reorganizar Simular e comparar como sequência única de diagnóstico, cobertura, cenários e decisão, relegando dimensionamento e contratos avançados a detalhes progressivos.
+- [x] Testar e documentar jornadas sem idas e vindas para dívida CDI, ouro, pagamento USD e compra/venda de commodities.
+- [ ] Confirmar a coleta integral de séries B3 de Ouro e DI1 em produção antes de liberar qualquer cotação, ajuste ou cálculo efetivo dependente dessas evidências.
