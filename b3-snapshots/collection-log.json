@@ -1,26 +1,32 @@
 {
-  "collectedAtUtc": "2026-09-01T11:41:49.675Z",
+  "collectedAtUtc": "2026-09-01T23:28:46.777Z",
   "summary": [
     {
       "asOf": "2026-09-01",
       "reportType": "BVBG.028.02",
       "status": "saved",
       "archiveFilename": "IN260901.zip",
-      "bytes": 14378598,
-      "sha256": "5d76185ba66be3850773f6684e247c5270644942c1581bf4b647ef26e58af82e",
+      "bytes": 28767483,
+      "sha256": "52da41f9824a6788eb20992220049c079b1f53e2a941bff7321e224d07da0ab1",
       "officialDownloadUrl": "https://www.b3.com.br/pesquisapregao/download?filelist=IN260901.zip%2C"
     },
     {
       "asOf": "2026-09-01",
       "reportType": "BVBG.086.01",
-      "status": "unavailable",
-      "reason": "O pacote externo não contém o ZIP interno PR260901.zip."
+      "status": "saved",
+      "archiveFilename": "PR260901.zip",
+      "bytes": 9297014,
+      "sha256": "594766b8b98d88e7ef0e30aeabe15d3191548eaf15352d2eb57748df249a0fd1",
+      "officialDownloadUrl": "https://www.b3.com.br/pesquisapregao/download?filelist=PR260901.zip%2C"
     },
     {
       "asOf": "2026-09-01",
       "reportType": "BVBG.187.01",
-      "status": "unavailable",
-      "reason": "O pacote externo não contém o ZIP interno SPRD260901.zip."
+      "status": "saved",
+      "archiveFilename": "SPRD260901.zip",
+      "bytes": 72487,
+      "sha256": "22cd84c3bd024bfd8ecb706a19370e62fce06ac9363b2d089a74f28539f2e74d",
+      "officialDownloadUrl": "https://www.b3.com.br/pesquisapregao/download?filelist=SPRD260901.zip%2C"
     },
     {
       "asOf": "2026-09-01",
@@ -34,7 +40,7 @@
       "status": "saved",
       "archiveFilename": "IN260831.zip",
       "bytes": 28764776,
-      "sha256": "9685cbf472b8abb5118c165ebcfb57b14e54962db8859785481534793d6532b5",
+      "sha256": "bb6cd5b0d3907ff28b49c72af21b638414a2e4f7f67b8a8217515bece7b07f28",
       "officialDownloadUrl": "https://www.b3.com.br/pesquisapregao/download?filelist=IN260831.zip%2C"
     },
     {
@@ -43,7 +49,7 @@
       "status": "saved",
       "archiveFilename": "PR260831.zip",
       "bytes": 12101876,
-      "sha256": "d541b2e2d7ba51b226fa2694e478092eacf3bd43ab5ea554f7537582bc8a1743",
+      "sha256": "5ff08a3d1f25fea352ac7c07fa8fc225b2f2f5f796f19bdb25b2cdd404c30250",
       "officialDownloadUrl": "https://www.b3.com.br/pesquisapregao/download?filelist=PR260831.zip%2C"
     },
     {
@@ -52,7 +58,7 @@
       "status": "saved",
       "archiveFilename": "SPRD260831.zip",
       "bytes": 139807,
-      "sha256": "ed610568effe74d0753312739e2ce3a0334d2e74661d335f83f99f7a9f9bc906",
+      "sha256": "9d4902464e2776ec400fa69befc953e88faeb748ad0bfa64e634d87388e4f310",
       "officialDownloadUrl": "https://www.b3.com.br/pesquisapregao/download?filelist=SPRD260831.zip%2C"
     },
     {
@@ -61,7 +67,7 @@
       "status": "saved",
       "archiveFilename": "MT260831.zip",
       "bytes": 7525809,
-      "sha256": "cdf309722ebb7885bd5cca56d9fbd542dd8bda7583a0c8a0d104522e771dd64d",
+      "sha256": "a21b4a0f7a350c55a491b267544f1d525f1836adead76dcd725e2b53d687585f",
       "officialDownloadUrl": "https://www.b3.com.br/pesquisapregao/download?filelist=MT260831.zip%2C",
       "innerBytes": 7529811
     }
